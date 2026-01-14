@@ -68,7 +68,7 @@ cargo run --bin dora-viewer
 
 | Action | How To |
 |--------|--------|
-| **Pan/Move Canvas** | Click and drag on empty canvas area (not on a node) |
+| **Pan/Move Canvas** | **Shift + Mouse Drag** anywhere on canvas |
 | **Zoom In/Out** | Mouse wheel scroll up/down |
 | **Fit All Nodes** | Click "Fit View" button in toolbar |
 | **Select Node** | Click on a node |
@@ -120,12 +120,12 @@ In the tree panel on the left, use **Ctrl+Click** on any item to toggle its enab
 
 | Action | Control |
 |--------|---------|
-| Pan canvas | Drag on empty area |
+| **Pan canvas** | **Shift + Mouse Drag** |
 | Zoom | Mouse wheel |
 | Select node | Click node |
 | Multi-select | Drag selection box |
 | Move nodes | Drag selected node(s) |
-| Toggle enabled | Ctrl+Click in tree |
+| **Enable/Disable** | **Ctrl+Click** in tree |
 | Node context menu | Right-click node |
 | Edge context menu | Right-click edge |
 
