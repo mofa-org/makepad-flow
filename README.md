@@ -64,18 +64,70 @@ cargo run --bin dora-viewer
 | **Toggle Match** | Batch enable/disable ports matching search |
 | **Ctrl+Click** | Toggle individual node/port enabled state |
 
-### Controls
+### Canvas Navigation
+
+| Action | How To |
+|--------|--------|
+| **Pan/Move Canvas** | Click and drag on empty canvas area (not on a node) |
+| **Zoom In/Out** | Mouse wheel scroll up/down |
+| **Fit All Nodes** | Click "Fit View" button in toolbar |
+| **Select Node** | Click on a node |
+| **Multi-Select** | Click and drag to create a selection box around nodes |
+| **Move Nodes** | Drag selected node(s) to new position |
+
+### Enable/Disable System
+
+The viewer supports enabling and disabling nodes and ports to filter the dataflow visualization.
+
+#### Ctrl+Click to Toggle
+
+In the tree panel on the left, use **Ctrl+Click** on any item to toggle its enabled state:
+
+- **Ctrl+Click on a Node**: Toggles the node AND all its ports
+- **Ctrl+Click on a Port**: Toggles only that specific port
+
+#### Enable States
+
+| State | Icon | Description |
+|-------|------|-------------|
+| **Fully Enabled** | ✓ | Node and ALL ports are enabled - shown normally on canvas |
+| **Partially Enabled** | ◐ | Node has SOME ports enabled, others disabled - node visible, only enabled connections shown |
+| **Fully Disabled** | ✗ | Node and ALL ports are disabled - node hidden from canvas if no connections remain |
+
+#### Visual Indicators
+
+- **Enabled items**: Normal text color in tree
+- **Disabled items**: Dimmed/grayed text in tree
+- **Hidden connections**: Edges to disabled ports are not drawn on canvas
+- **Hidden nodes**: Nodes that lose ALL connections (due to disabled ports) automatically disappear from the canvas
+
+#### Batch Operations
+
+| Button | Location | Effect |
+|--------|----------|--------|
+| **Enable All** | Footer | Enable all nodes and all ports |
+| **Disable All** | Footer | Disable all nodes and all ports |
+| **Toggle Match** | Header & Footer | Toggle all ports matching current search text |
+
+#### Example Workflow
+
+1. Type "control" in search box
+2. Click **Toggle Match** → All ports containing "control" are disabled
+3. Nodes that only had "control" connections disappear from canvas
+4. Click **Toggle Match** again → Ports re-enabled, nodes reappear
+
+### Controls Summary
 
 | Action | Control |
 |--------|---------|
-| Pan | Drag on empty canvas |
+| Pan canvas | Drag on empty area |
 | Zoom | Mouse wheel |
-| Select | Click node |
+| Select node | Click node |
 | Multi-select | Drag selection box |
-| Move | Drag selected node(s) |
+| Move nodes | Drag selected node(s) |
 | Toggle enabled | Ctrl+Click in tree |
-| Node menu | Right-click node |
-| Edge menu | Right-click edge |
+| Node context menu | Right-click node |
+| Edge context menu | Right-click edge |
 
 ## FlowCanvas Library
 
