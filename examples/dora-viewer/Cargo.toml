@@ -1,0 +1,11 @@
+[package]
+name = "dora-viewer"
+version = "0.1.0"
+edition = "2021"
+description = "Dora dataflow visualizer using makepad-flow"
+
+[dependencies]
+makepad-flow = { path = "../../crates/makepad-flow" }
+makepad-widgets = { git = "https://github.com/makepad/makepad", branch = "rik" }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"

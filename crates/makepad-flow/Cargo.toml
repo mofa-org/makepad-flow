@@ -1,0 +1,8 @@
+[package]
+name = "makepad-flow"
+version = "0.1.0"
+edition = "2021"
+description = "A flow/node editor widget for Makepad"
+
+[dependencies]
+makepad-widgets = { git = "https://github.com/makepad/makepad", branch = "rik" }

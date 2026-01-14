@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/makepad-flow",
+    "examples/flow-editor",
+    "examples/dora-viewer",
+]
+
+[workspace.dependencies]
+makepad-widgets = { git = "https://github.com/makepad/makepad", branch = "rik" }

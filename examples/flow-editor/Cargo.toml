@@ -1,0 +1,9 @@
+[package]
+name = "flow-editor"
+version = "0.1.0"
+edition = "2021"
+description = "Flow/node editor example using makepad-flow"
+
+[dependencies]
+makepad-flow = { path = "../../crates/makepad-flow" }
+makepad-widgets = { git = "https://github.com/makepad/makepad", branch = "rik" }
