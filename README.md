@@ -88,11 +88,11 @@ In the tree panel on the left, use **Ctrl+Click** on any item to toggle its enab
 
 #### Enable States
 
-| State | Description |
-|-------|-------------|
-| **Fully Enabled** | Node and ALL ports are enabled - shown normally on canvas |
-| **Partially Enabled** | Node has SOME ports enabled, others disabled - node visible, only enabled connections shown |
-| **Fully Disabled** | Node and ALL ports are disabled - node hidden from canvas if no connections remain |
+| State | Icon | Description |
+|-------|------|-------------|
+| **Fully Enabled** | ● | Node and ALL ports are enabled - shown normally on canvas |
+| **Partially Enabled** | ◐ | Node has SOME ports enabled, others disabled - node visible, only enabled connections shown |
+| **Fully Disabled** | ○ | Node and ALL ports are disabled - node hidden from canvas if no connections remain |
 
 #### Visual Indicators
 
