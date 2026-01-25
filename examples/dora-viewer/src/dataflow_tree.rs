@@ -355,35 +355,35 @@ impl Widget for DataflowTreeHeader {
 
 impl WidgetMatchEvent for DataflowTreeHeader {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions, scope: &mut Scope) {
-        if let Some(text) = self.view.text_input(id!(search_input)).changed(actions) {
+        if let Some(text) = self.view.text_input(ids!(search_input)).changed(actions) {
             cx.widget_action(self.widget_uid(), &scope.path,
                 DataflowTreeAction::SearchChanged { text });
         }
 
-        if self.view.button(id!(filter_all)).clicked(actions) {
+        if self.view.button(ids!(filter_all)).clicked(actions) {
             cx.widget_action(self.widget_uid(), &scope.path,
                 DataflowTreeAction::FilterCategory { category: None });
         }
-        if self.view.button(id!(filter_maas)).clicked(actions) {
+        if self.view.button(ids!(filter_maas)).clicked(actions) {
             cx.widget_action(self.widget_uid(), &scope.path,
                 DataflowTreeAction::FilterCategory { category: Some(NodeCategory::MaaS) });
         }
-        if self.view.button(id!(filter_tts)).clicked(actions) {
+        if self.view.button(ids!(filter_tts)).clicked(actions) {
             cx.widget_action(self.widget_uid(), &scope.path,
                 DataflowTreeAction::FilterCategory { category: Some(NodeCategory::TTS) });
         }
-        if self.view.button(id!(filter_bridge)).clicked(actions) {
+        if self.view.button(ids!(filter_bridge)).clicked(actions) {
             cx.widget_action(self.widget_uid(), &scope.path,
                 DataflowTreeAction::FilterCategory { category: Some(NodeCategory::Bridge) });
         }
 
-        if self.view.button(id!(expand_all)).clicked(actions) {
+        if self.view.button(ids!(expand_all)).clicked(actions) {
             cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::ExpandAll);
         }
-        if self.view.button(id!(collapse_all)).clicked(actions) {
+        if self.view.button(ids!(collapse_all)).clicked(actions) {
             cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::CollapseAll);
         }
-        if self.view.button(id!(toggle_match)).clicked(actions) {
+        if self.view.button(ids!(toggle_match)).clicked(actions) {
             log!("DataflowTreeHeader: Toggle Match button clicked");
             cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::ToggleMatchingPorts);
         }
@@ -412,13 +412,13 @@ impl Widget for DataflowTreeFooter {
 
 impl WidgetMatchEvent for DataflowTreeFooter {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions, scope: &mut Scope) {
-        if self.view.button(id!(enable_selected)).clicked(actions) {
+        if self.view.button(ids!(enable_selected)).clicked(actions) {
             cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::EnableAllNodes);
         }
-        if self.view.button(id!(disable_selected)).clicked(actions) {
+        if self.view.button(ids!(disable_selected)).clicked(actions) {
             cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::DisableAllNodes);
         }
-        if self.view.button(id!(toggle_matching)).clicked(actions) {
+        if self.view.button(ids!(toggle_matching)).clicked(actions) {
             cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::ToggleMatchingPorts);
         }
     }
@@ -427,7 +427,7 @@ impl WidgetMatchEvent for DataflowTreeFooter {
 impl DataflowTreeFooterRef {
     pub fn set_node_count(&self, cx: &mut Cx, count: usize) {
         if let Some(mut inner) = self.borrow_mut() {
-            inner.view.label(id!(node_count)).set_text(cx, &format!("{} nodes", count));
+            inner.view.label(ids!(node_count)).set_text(cx, &format!("{} nodes", count));
         }
     }
 }

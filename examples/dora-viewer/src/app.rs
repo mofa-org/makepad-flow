@@ -358,7 +358,7 @@ impl MatchEvent for App {
                         self.loaded_edges = edges;
 
                         // Update UI
-                        self.ui.label(id!(file_label)).set_text(cx, path);
+                        self.ui.label(ids!(file_label)).set_text(cx, path);
                         self.update_node_count_label(cx);
                         self.update_status_bar(cx);
 
@@ -389,26 +389,26 @@ impl MatchEvent for App {
 
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
         // Fit view button
-        if self.ui.button(id!(fit_view_btn)).clicked(actions) {
+        if self.ui.button(ids!(fit_view_btn)).clicked(actions) {
             cx.action(FlowCanvasCommand::FitView);
         }
 
         // Reload button
-        if self.ui.button(id!(reload_btn)).clicked(actions) {
+        if self.ui.button(ids!(reload_btn)).clicked(actions) {
             // Re-trigger startup to reload
             self.handle_startup(cx);
         }
 
         // LogPanel disabled for now
-        // let log_panel = self.ui.log_panel(id!(log_panel));
+        // let log_panel = self.ui.log_panel(ids!(log_panel));
         // if log_panel.clear_clicked(actions) {
         //     log_panel.clear_entries(cx);
         // }
 
         // Handle DataflowTree header actions
-        let tree_header = self.ui.dataflow_tree_header(id!(tree_header));
-        let dataflow_tree = self.ui.dataflow_tree(id!(dataflow_tree));
-        let tree_footer = self.ui.dataflow_tree_footer(id!(tree_footer));
+        let tree_header = self.ui.dataflow_tree_header(ids!(tree_header));
+        let dataflow_tree = self.ui.dataflow_tree(ids!(dataflow_tree));
+        let tree_footer = self.ui.dataflow_tree_footer(ids!(tree_footer));
 
         // Handle search
         if let Some(text) = tree_header.search_changed(actions) {
@@ -484,7 +484,7 @@ impl MatchEvent for App {
             if let FlowCanvasAction::StatusUpdate { nodes, edges } = action.cast() {
                 let enabled_count = self.node_enabled.values().filter(|&&e| e).count();
                 let text = format!("Nodes: {} | Edges: {} | Enabled: {}", nodes, edges, enabled_count);
-                self.ui.label(id!(count_label)).set_text(cx, &text);
+                self.ui.label(ids!(count_label)).set_text(cx, &text);
             }
         }
     }
@@ -492,7 +492,7 @@ impl MatchEvent for App {
 
 impl App {
     fn update_node_count_label(&mut self, cx: &mut Cx) {
-        let tree_footer = self.ui.dataflow_tree_footer(id!(tree_footer));
+        let tree_footer = self.ui.dataflow_tree_footer(ids!(tree_footer));
         tree_footer.set_node_count(cx, self.loaded_nodes.len());
     }
 
@@ -504,12 +504,12 @@ impl App {
             self.loaded_edges.len(),
             enabled_count
         );
-        self.ui.label(id!(count_label)).set_text(cx, &text);
+        self.ui.label(ids!(count_label)).set_text(cx, &text);
     }
 
     fn reload_flow_with_enabled_filter(&mut self, cx: &mut Cx) {
         // Get current enabled states from the tree widget
-        let dataflow_tree = self.ui.dataflow_tree(id!(dataflow_tree));
+        let dataflow_tree = self.ui.dataflow_tree(ids!(dataflow_tree));
         let node_states = dataflow_tree.get_node_enabled_states();
         let port_states = dataflow_tree.get_port_enabled_states();
 
@@ -641,7 +641,7 @@ impl App {
         }).collect();
 
         // Set the nodes on the DataflowTree widget
-        self.ui.dataflow_tree(id!(dataflow_tree)).set_nodes(cx, tree_nodes);
+        self.ui.dataflow_tree(ids!(dataflow_tree)).set_nodes(cx, tree_nodes);
     }
 
     fn add_demo_logs(&mut self, cx: &mut Cx) {
@@ -672,12 +672,12 @@ impl App {
             }
         }).collect();
 
-        self.ui.log_panel(id!(log_panel)).set_entries(cx, entries);
+        self.ui.log_panel(ids!(log_panel)).set_entries(cx, entries);
     }
 
     fn handle_splitter_events(&mut self, cx: &mut Cx, event: &Event) {
         // Left splitter
-        let left_splitter = self.ui.view(id!(left_splitter));
+        let left_splitter = self.ui.view(ids!(left_splitter));
         match event.hits(cx, left_splitter.area()) {
             Hit::FingerDown(_) => {
                 self.left_dragging = true;
@@ -687,10 +687,10 @@ impl App {
             }
             Hit::FingerMove(fm) => {
                 if self.left_dragging {
-                    let body_rect = self.ui.view(id!(main_area)).area().rect(cx);
+                    let body_rect = self.ui.view(ids!(main_area)).area().rect(cx);
                     let new_width = (fm.abs.x - body_rect.pos.x).max(Self::MIN_LEFT_WIDTH);
                     self.left_panel_width = new_width;
-                    self.ui.view(id!(left_panel)).apply_over(cx, live! {
+                    self.ui.view(ids!(left_panel)).apply_over(cx, live! {
                         width: (new_width)
                     });
                     self.ui.redraw(cx);
@@ -712,7 +712,7 @@ impl AppMain for App {
             // Ctrl+Shift+D or Cmd+Shift+D: Toggle all ports matching search filter
             if ctrl_or_cmd && shift && key_event.key_code == KeyCode::KeyD {
                 log!("App: Ctrl/Cmd+Shift+D pressed - toggling matching ports");
-                let dataflow_tree = self.ui.dataflow_tree(id!(dataflow_tree));
+                let dataflow_tree = self.ui.dataflow_tree(ids!(dataflow_tree));
                 if dataflow_tree.toggle_matching_ports_from_app(cx) {
                     log!("App: Toggled matching ports");
                     self.reload_flow_with_enabled_filter(cx);

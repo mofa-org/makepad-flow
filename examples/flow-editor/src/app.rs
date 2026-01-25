@@ -104,29 +104,29 @@ impl LiveRegister for App {
 impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
         // Handle button clicks - send commands as widget actions
-        if self.ui.button(id!(add_node_btn)).clicked(actions) {
+        if self.ui.button(ids!(add_node_btn)).clicked(actions) {
             cx.action(FlowCanvasCommand::AddNode);
         }
 
-        if self.ui.button(id!(delete_btn)).clicked(actions) {
+        if self.ui.button(ids!(delete_btn)).clicked(actions) {
             cx.action(FlowCanvasCommand::Delete);
         }
 
-        if self.ui.button(id!(fit_view_btn)).clicked(actions) {
+        if self.ui.button(ids!(fit_view_btn)).clicked(actions) {
             cx.action(FlowCanvasCommand::FitView);
         }
 
-        if self.ui.button(id!(clear_btn)).clicked(actions) {
+        if self.ui.button(ids!(clear_btn)).clicked(actions) {
             cx.action(FlowCanvasCommand::Clear);
         }
 
         // Handle line style dropdown
-        if let Some(index) = self.ui.drop_down(id!(line_style_dropdown)).changed(actions) {
+        if let Some(index) = self.ui.drop_down(ids!(line_style_dropdown)).changed(actions) {
             cx.action(FlowCanvasCommand::SetLineStyle(index as f32));
         }
 
         // Handle line width dropdown
-        if let Some(index) = self.ui.drop_down(id!(line_width_dropdown)).changed(actions) {
+        if let Some(index) = self.ui.drop_down(ids!(line_width_dropdown)).changed(actions) {
             cx.action(FlowCanvasCommand::SetLineWidth((index + 1) as f32));
         }
 
@@ -134,7 +134,7 @@ impl MatchEvent for App {
         for action in actions {
             if let FlowCanvasAction::StatusUpdate { nodes, edges } = action.cast() {
                 let text = format!("Nodes: {} | Edges: {}", nodes, edges);
-                self.ui.label(id!(count_label)).set_text(cx, &text);
+                self.ui.label(ids!(count_label)).set_text(cx, &text);
             }
         }
     }

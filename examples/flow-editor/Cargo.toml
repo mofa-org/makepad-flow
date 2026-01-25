@@ -6,4 +6,4 @@ description = "Flow/node editor example using makepad-flow"
 
 [dependencies]
 makepad-flow = { path = "../../crates/makepad-flow" }
-makepad-widgets = { git = "https://github.com/makepad/makepad", branch = "rik" }
+makepad-widgets = { workspace = true }
