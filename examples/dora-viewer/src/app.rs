@@ -188,11 +188,11 @@ fn parse_dataflow_yaml(yaml_content: &str) -> Result<(Vec<FlowNode>, Vec<EdgeCon
     let dataflow: DataflowYaml = serde_yaml::from_str(yaml_content)
         .map_err(|e| format!("YAML parse error: {}", e))?;
 
-    let mut nodes = Vec::new();
+    let mut nodes_data: Vec<(FlowNode, Vec<(String, String, String)>)> = Vec::new();
     let mut edges = Vec::new();
     let mut node_id_to_index: HashMap<String, usize> = HashMap::new();
 
-    // First pass: create all nodes
+    // First pass: create all nodes with temporary positions
     for (i, node_yaml) in dataflow.nodes.iter().enumerate() {
         let mut input_ports = Vec::new();
         let mut input_sources: Vec<(String, String, String)> = Vec::new();
@@ -237,27 +237,22 @@ fn parse_dataflow_yaml(yaml_content: &str) -> Result<(Vec<FlowNode>, Vec<EdgeCon
 
         let category = categorize_node(&node_yaml.id, node_yaml.path.as_deref());
 
-        // Auto-layout: arrange in rows
-        let row = i / 4;
-        let col = i % 4;
-        let x = 50.0 + col as f64 * 280.0;
-        let y = 50.0 + row as f64 * 180.0;
-
+        // Temporary position (will be updated by layout algorithm)
         let node = FlowNode::new_dataflow(
             &node_yaml.id,
-            x, y,
+            0.0, 0.0,
             &node_yaml.id,
             category,
             input_ports,
             output_ports,
         );
 
-        node_id_to_index.insert(node_yaml.id.clone(), nodes.len());
-        nodes.push((node, input_sources));
+        node_id_to_index.insert(node_yaml.id.clone(), i);
+        nodes_data.push((node, input_sources));
     }
 
     // Second pass: create edges
-    for (to_node_idx, (_, input_sources)) in nodes.iter().enumerate() {
+    for (to_node_idx, (_, input_sources)) in nodes_data.iter().enumerate() {
         for (to_port, from_node_id, from_port) in input_sources {
             if let Some(&from_node_idx) = node_id_to_index.get(from_node_id) {
                 edges.push(EdgeConnection::new_with_ports(
@@ -270,7 +265,159 @@ fn parse_dataflow_yaml(yaml_content: &str) -> Result<(Vec<FlowNode>, Vec<EdgeCon
         }
     }
 
-    let nodes: Vec<FlowNode> = nodes.into_iter().map(|(n, _)| n).collect();
+    // Category-based layout: group nodes by category and arrange in columns
+    // Define column order for categories (data flow direction: left to right)
+    fn category_to_column(cat: NodeCategory) -> usize {
+        match cat {
+            NodeCategory::MaaS => 0,        // Source: LLM clients
+            NodeCategory::Bridge => 1,      // Bridge/Switch
+            NodeCategory::Segmenter => 2,   // Text processing
+            NodeCategory::TTS => 3,         // TTS conversion
+            NodeCategory::Controller => 2,  // Controller (middle)
+            NodeCategory::MoFA => 4,        // MoFA nodes (output)
+            NodeCategory::Default => 2,     // Default in middle
+        }
+    }
+
+    // Build connection info for barycenter calculation
+    let mut incoming: Vec<Vec<usize>> = vec![Vec::new(); nodes_data.len()];
+    let mut outgoing: Vec<Vec<usize>> = vec![Vec::new(); nodes_data.len()];
+    for edge in &edges {
+        incoming[edge.to_node].push(edge.from_node);
+        outgoing[edge.from_node].push(edge.to_node);
+    }
+
+    // Group nodes by their column
+    let max_col = 4;
+    let mut columns: Vec<Vec<usize>> = vec![Vec::new(); max_col + 1];
+
+    for (idx, (node, _)) in nodes_data.iter().enumerate() {
+        let col = category_to_column(node.category);
+        columns[col].push(idx);
+    }
+
+    // Initial sort by name
+    for col in &mut columns {
+        col.sort_by(|&a, &b| nodes_data[a].0.id.cmp(&nodes_data[b].0.id));
+    }
+
+    // Assign initial positions for barycenter calculation
+    let mut positions: Vec<f64> = vec![0.0; nodes_data.len()];
+    for (col_idx, nodes_in_col) in columns.iter().enumerate() {
+        for (row_idx, &node_idx) in nodes_in_col.iter().enumerate() {
+            positions[node_idx] = row_idx as f64;
+        }
+    }
+
+    // Barycenter optimization: multiple passes to minimize crossings
+    for _pass in 0..4 {
+        // Forward pass (left to right)
+        for col_idx in 1..=max_col {
+            if columns[col_idx].is_empty() {
+                continue;
+            }
+
+            // Calculate barycenter for each node based on connected nodes in previous columns
+            let mut barycenters: Vec<(usize, f64)> = columns[col_idx].iter()
+                .map(|&node| {
+                    let connected_positions: Vec<f64> = incoming[node].iter()
+                        .filter(|&&src| category_to_column(nodes_data[src].0.category) < col_idx)
+                        .map(|&src| positions[src])
+                        .collect();
+
+                    let barycenter = if connected_positions.is_empty() {
+                        positions[node] // Keep current position
+                    } else {
+                        connected_positions.iter().sum::<f64>() / connected_positions.len() as f64
+                    };
+                    (node, barycenter)
+                })
+                .collect();
+
+            barycenters.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            columns[col_idx] = barycenters.iter().map(|(node, _)| *node).collect();
+
+            // Update positions
+            for (row_idx, &node_idx) in columns[col_idx].iter().enumerate() {
+                positions[node_idx] = row_idx as f64;
+            }
+        }
+
+        // Backward pass (right to left)
+        for col_idx in (0..max_col).rev() {
+            if columns[col_idx].is_empty() {
+                continue;
+            }
+
+            let mut barycenters: Vec<(usize, f64)> = columns[col_idx].iter()
+                .map(|&node| {
+                    let connected_positions: Vec<f64> = outgoing[node].iter()
+                        .filter(|&&dst| category_to_column(nodes_data[dst].0.category) > col_idx)
+                        .map(|&dst| positions[dst])
+                        .collect();
+
+                    let barycenter = if connected_positions.is_empty() {
+                        positions[node]
+                    } else {
+                        connected_positions.iter().sum::<f64>() / connected_positions.len() as f64
+                    };
+                    (node, barycenter)
+                })
+                .collect();
+
+            barycenters.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            columns[col_idx] = barycenters.iter().map(|(node, _)| *node).collect();
+
+            for (row_idx, &node_idx) in columns[col_idx].iter().enumerate() {
+                positions[node_idx] = row_idx as f64;
+            }
+        }
+    }
+
+    // Calculate positions with dynamic row height based on node port count
+    let col_spacing = 300.0;   // Horizontal spacing between columns
+    let base_row_spacing = 120.0;   // Base vertical spacing
+    let start_x = 50.0;
+    let start_y = 50.0;
+
+    // Calculate actual height needed for each node
+    fn node_height(node: &FlowNode) -> f64 {
+        let port_count = node.input_ports.len().max(node.output_ports.len());
+        let base_height = 60.0;
+        let port_height = 20.0;
+        base_height + (port_count as f64 * port_height)
+    }
+
+    // Calculate total height for each column
+    let col_heights: Vec<f64> = columns.iter()
+        .map(|col| {
+            col.iter()
+                .map(|&idx| node_height(&nodes_data[idx].0) + 20.0) // 20px gap
+                .sum()
+        })
+        .collect();
+
+    let max_height = col_heights.iter().cloned().fold(0.0, f64::max);
+
+    for (col_idx, nodes_in_col) in columns.iter().enumerate() {
+        if nodes_in_col.is_empty() {
+            continue;
+        }
+
+        // Center this column vertically
+        let col_height = col_heights[col_idx];
+        let y_offset = (max_height - col_height) / 2.0;
+
+        let mut current_y = start_y + y_offset;
+        for &node_idx in nodes_in_col.iter() {
+            let x = start_x + col_idx as f64 * col_spacing;
+            nodes_data[node_idx].0.x = x;
+            nodes_data[node_idx].0.y = current_y;
+            current_y += node_height(&nodes_data[node_idx].0) + 20.0;
+        }
+    }
+
+    let nodes: Vec<FlowNode> = nodes_data.into_iter().map(|(n, _)| n).collect();
     Ok((nodes, edges))
 }
 
