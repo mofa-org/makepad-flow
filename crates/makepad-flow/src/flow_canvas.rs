@@ -140,6 +140,15 @@ live_design! {
             text_style: <THEME_FONT_REGULAR>{ font_size: 11.0 }
             color: #333333
         }
+
+        // Configurable properties with defaults
+        line_width: 2.0
+        line_style: 0.0
+        default_zoom: 1.0
+        selection_color: #4A90D9
+        edge_color: #8CBFFF
+        edge_selected_color: #FFD966
+        animate_edges: true
     }
 }
 
@@ -517,6 +526,16 @@ pub struct FlowCanvas {
     #[live] draw_rounded_top_rect: DrawRoundedTopRect,
     #[live] draw_rounded_bottom_rect: DrawRoundedBottomRect,
     #[live] draw_text: DrawText,
+
+    // Configurable visual properties (can be set via DSL)
+    #[live(2.0)] pub line_width: f32,
+    #[live(0.0)] pub line_style: f32,
+    #[live(1.0)] pub default_zoom: f64,
+    #[live] pub selection_color: Vec4,
+    #[live] pub edge_color: Vec4,
+    #[live] pub edge_selected_color: Vec4,
+    #[live(true)] pub animate_edges: bool,
+
     #[rust] nodes: Vec<FlowNode>,
     #[rust] edges: Vec<EdgeConnection>,
     #[rust] drag_state: DragState,
@@ -526,8 +545,6 @@ pub struct FlowCanvas {
     #[rust] zoom: f64,
     #[rust] initialized: bool,
     #[rust] next_node_id: usize,
-    #[rust] line_width: f32,
-    #[rust] line_style: f32, // 0=solid, 1=dashed, 2=dotted
     #[rust] animation_timer: Timer,
     #[rust] animation_phase: f64, // 0.0 to 1.0, cycles continuously
     #[rust] context_menu_node: Option<usize>, // Which node is the context menu for
@@ -1153,8 +1170,8 @@ impl Widget for FlowCanvas {
 
         // Draw edges using DrawColor for line segments
         for (from, to, selected, edge_style, edge_width, edge_animated, marker, label) in edges_to_draw {
-            // Use negative value for anim_phase if animation is off for this edge
-            let phase = if edge_animated { anim_phase } else { -1.0 };
+            // Use negative value for anim_phase if animation is off (global or per-edge)
+            let phase = if self.animate_edges && edge_animated { anim_phase } else { -1.0 };
             self.draw_bezier_edge(cx, from, to, selected, edge_width, edge_style, phase);
 
             // Draw edge marker (arrow) at endpoint
@@ -1282,16 +1299,14 @@ impl FlowCanvas {
                 // Solid line
                 if animated {
                     // With animation: dim base line + bright flow particles
-                    let base_color = if selected {
-                        vec4(0.6, 0.5, 0.2, 0.6)
-                    } else {
-                        vec4(0.35, 0.5, 0.7, 0.5)
-                    };
-                    let flow_color = if selected {
-                        vec4(1.0, 0.9, 0.4, 1.0)
-                    } else {
-                        vec4(0.4, 0.8, 1.0, 1.0)
-                    };
+                    let edge_col = if selected { self.edge_selected_color } else { self.edge_color };
+                    let base_color = vec4(edge_col.x * 0.6, edge_col.y * 0.6, edge_col.z * 0.6, 0.5);
+                    let flow_color = vec4(
+                        (edge_col.x * 1.2).min(1.0),
+                        (edge_col.y * 1.2).min(1.0),
+                        (edge_col.z * 1.2).min(1.0),
+                        1.0
+                    );
 
                     // Draw base line
                     self.draw_edge.color = base_color;
@@ -1356,9 +1371,9 @@ impl FlowCanvas {
                 } else {
                     // No animation: just solid bright line
                     self.draw_edge.color = if selected {
-                        vec4(1.0, 0.8, 0.3, 1.0)
+                        self.edge_selected_color
                     } else {
-                        vec4(0.55, 0.75, 1.0, 1.0)
+                        self.edge_color
                     };
 
                     for i in 1..points.len() {
@@ -1391,9 +1406,9 @@ impl FlowCanvas {
                 let dash_offset = if animated { phase * cycle } else { 0.0 };
 
                 self.draw_edge.color = if selected {
-                    vec4(1.0, 0.8, 0.3, 1.0)
+                    self.edge_selected_color
                 } else {
-                    vec4(0.55, 0.75, 1.0, 1.0)
+                    self.edge_color
                 };
 
                 for i in 1..points.len() {
@@ -1429,9 +1444,9 @@ impl FlowCanvas {
                 let dot_offset = if animated { phase * dot_spacing } else { 0.0 };
 
                 self.draw_edge.color = if selected {
-                    vec4(1.0, 0.8, 0.3, 1.0)
+                    self.edge_selected_color
                 } else {
-                    vec4(0.55, 0.75, 1.0, 1.0)
+                    self.edge_color
                 };
 
                 let mut next_dot_at = dot_offset;
@@ -1471,12 +1486,10 @@ impl FlowCanvas {
     fn initialize(&mut self, cx: &mut Cx) {
         if self.initialized { return; }
 
-        self.zoom = 1.0;
+        self.zoom = self.default_zoom;
         self.pan_offset = DVec2::default();
         self.drag_state = DragState::None;
         self.next_node_id = 4;
-        self.line_width = 2.0;
-        self.line_style = 0.0; // solid
         self.animation_phase = 0.0;
         self.context_menu_node = None;
         self.context_menu_edge = None;
@@ -1584,7 +1597,7 @@ impl FlowCanvas {
                 (vec4(1.0, 1.0, 1.0, 1.0), head_color)
             }
         };
-        let border_color = vec4(0.29, 0.56, 0.85, 1.0); // #4A90D9
+        let border_color = self.selection_color;
 
         match shape {
             NodeShape::RoundedRect => {
@@ -1984,7 +1997,7 @@ impl FlowCanvas {
         // Multi-selection header (light theme)
         if is_multi {
             self.draw_text.text_style.font_size = 9.0;
-            self.draw_text.color = vec4(0.29, 0.56, 0.85, 1.0); // #4A90D9
+            self.draw_text.color = self.selection_color;
             self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, &format!("Apply to {} nodes", multi_count));
             y += item_height;
         }
@@ -2208,9 +2221,9 @@ impl FlowCanvas {
                 let right = DVec2 { x: tip.x - nx * back - px * width, y: tip.y - ny * back - py * width };
 
                 self.draw_edge.color = if selected {
-                    vec4(1.0, 0.8, 0.3, 1.0)
+                    self.edge_selected_color
                 } else {
-                    vec4(0.55, 0.75, 1.0, 1.0)
+                    self.edge_color
                 };
 
                 if marker == EdgeMarker::ArrowFilled {
@@ -2225,9 +2238,9 @@ impl FlowCanvas {
             EdgeMarker::Circle => {
                 let radius = arrow_size;
                 self.draw_edge.color = if selected {
-                    vec4(1.0, 0.8, 0.3, 1.0)
+                    self.edge_selected_color
                 } else {
-                    vec4(0.55, 0.75, 1.0, 1.0)
+                    self.edge_color
                 };
                 // Draw circle at endpoint
                 for i in 0..16 {
@@ -2368,7 +2381,7 @@ impl FlowCanvas {
             let is_selected = current_style == i as i32;
             self.draw_text.text_style.font_size = 10.0;
             self.draw_text.color = if is_selected {
-                vec4(0.29, 0.56, 0.85, 1.0) // #4A90D9 - Highlight selected
+                self.selection_color
             } else {
                 vec4(0.2, 0.2, 0.2, 1.0) // #333333
             };
@@ -2397,7 +2410,7 @@ impl FlowCanvas {
             let is_selected = current_width == (i + 1) as i32;
             self.draw_text.text_style.font_size = 10.0;
             self.draw_text.color = if is_selected {
-                vec4(0.29, 0.56, 0.85, 1.0) // #4A90D9
+                self.selection_color
             } else {
                 vec4(0.2, 0.2, 0.2, 1.0) // #333333
             };
@@ -2426,7 +2439,7 @@ impl FlowCanvas {
             let is_selected = (i == 0) == current_animated;
             self.draw_text.text_style.font_size = 10.0;
             self.draw_text.color = if is_selected {
-                vec4(0.29, 0.56, 0.85, 1.0) // #4A90D9
+                self.selection_color
             } else {
                 vec4(0.2, 0.2, 0.2, 1.0) // #333333
             };
