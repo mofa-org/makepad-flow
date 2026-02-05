@@ -1,6 +1,12 @@
 use makepad_widgets::*;
 use std::collections::HashSet;
 
+/// Canvas constants for zoom bounds and other magic numbers
+mod canvas {
+    pub const MIN_ZOOM: f64 = 0.25;
+    pub const MAX_ZOOM: f64 = 4.0;
+}
+
 live_design! {
     use link::theme::*;
     use link::shaders::*;
@@ -1043,7 +1049,7 @@ impl Widget for FlowCanvas {
                 // Zoom with scroll wheel
                 let zoom_delta = if se.scroll.y > 0.0 { 1.1 } else { 0.9 };
                 let local = self.screen_to_canvas(se.abs, area_rect);
-                self.zoom = (self.zoom * zoom_delta).clamp(0.25, 4.0);
+                self.zoom = (self.zoom * zoom_delta).clamp(canvas::MIN_ZOOM, canvas::MAX_ZOOM);
 
                 // Zoom toward cursor position
                 self.pan_offset.x = se.abs.x - area_rect.pos.x - (local.x * self.zoom);
@@ -2446,6 +2452,145 @@ impl FlowCanvas {
             let prefix = if is_selected { "> " } else { "  " };
             self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, &format!("{}{}", prefix, label));
             y += item_height;
+        }
+    }
+}
+
+/// Type-safe widget reference for FlowCanvas
+impl FlowCanvasRef {
+    /// Add a new node to the canvas
+    pub fn add_node(&self, cx: &mut Cx, node: FlowNode) {
+        if let Some(mut inner) = self.borrow_mut() {
+            inner.save_undo_state();
+            inner.nodes.push(node);
+            inner.view.redraw(cx);
+        }
+    }
+
+    /// Remove a node by ID
+    pub fn remove_node(&self, cx: &mut Cx, node_id: &str) -> bool {
+        if let Some(mut inner) = self.borrow_mut() {
+            if let Some(idx) = inner.nodes.iter().position(|n| n.id == node_id) {
+                inner.save_undo_state();
+                // Remove connected edges
+                inner.edges.retain(|e| e.from_node != idx && e.to_node != idx);
+                // Update edge indices
+                for edge in &mut inner.edges {
+                    if edge.from_node > idx { edge.from_node -= 1; }
+                    if edge.to_node > idx { edge.to_node -= 1; }
+                }
+                inner.nodes.remove(idx);
+                inner.selected_nodes.clear();
+                inner.view.redraw(cx);
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Add an edge between nodes
+    pub fn add_edge(&self, cx: &mut Cx, edge: EdgeConnection) {
+        if let Some(mut inner) = self.borrow_mut() {
+            inner.save_undo_state();
+            inner.edges.push(edge);
+            inner.view.redraw(cx);
+        }
+    }
+
+    /// Load a complete graph (nodes and edges)
+    pub fn load_graph(&self, cx: &mut Cx, nodes: Vec<FlowNode>, edges: Vec<EdgeConnection>) {
+        if let Some(mut inner) = self.borrow_mut() {
+            inner.save_undo_state();
+            inner.nodes = nodes;
+            inner.edges = edges;
+            inner.selected_nodes.clear();
+            inner.selected_edges.clear();
+            inner.view.redraw(cx);
+        }
+    }
+
+    /// Fit the view to show all nodes
+    pub fn fit_view(&self, cx: &mut Cx) {
+        if let Some(mut inner) = self.borrow_mut() {
+            inner.fit_view(cx);
+        }
+    }
+
+    /// Clear all nodes and edges
+    pub fn clear(&self, cx: &mut Cx) {
+        if let Some(mut inner) = self.borrow_mut() {
+            inner.clear(cx);
+        }
+    }
+
+    /// Get the number of nodes
+    pub fn node_count(&self) -> usize {
+        self.borrow().map(|inner| inner.nodes.len()).unwrap_or(0)
+    }
+
+    /// Get the number of edges
+    pub fn edge_count(&self) -> usize {
+        self.borrow().map(|inner| inner.edges.len()).unwrap_or(0)
+    }
+
+    /// Get selected node indices
+    pub fn selected_nodes(&self) -> Vec<usize> {
+        self.borrow()
+            .map(|inner| inner.selected_nodes.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    /// Get selected edge indices
+    pub fn selected_edges(&self) -> Vec<usize> {
+        self.borrow()
+            .map(|inner| inner.selected_edges.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    /// Select a node by index
+    pub fn select_node(&self, cx: &mut Cx, index: usize) {
+        if let Some(mut inner) = self.borrow_mut() {
+            if index < inner.nodes.len() {
+                inner.selected_nodes.clear();
+                inner.selected_nodes.insert(index);
+                inner.view.redraw(cx);
+            }
+        }
+    }
+
+    /// Clear selection
+    pub fn clear_selection(&self, cx: &mut Cx) {
+        if let Some(mut inner) = self.borrow_mut() {
+            inner.selected_nodes.clear();
+            inner.selected_edges.clear();
+            inner.view.redraw(cx);
+        }
+    }
+
+    /// Set zoom level
+    pub fn set_zoom(&self, cx: &mut Cx, zoom: f64) {
+        if let Some(mut inner) = self.borrow_mut() {
+            inner.zoom = zoom.clamp(canvas::MIN_ZOOM, canvas::MAX_ZOOM);
+            inner.view.redraw(cx);
+        }
+    }
+
+    /// Get current zoom level
+    pub fn zoom(&self) -> f64 {
+        self.borrow().map(|inner| inner.zoom).unwrap_or(1.0)
+    }
+
+    /// Undo last action
+    pub fn undo(&self, cx: &mut Cx) {
+        if let Some(mut inner) = self.borrow_mut() {
+            inner.undo(cx);
+        }
+    }
+
+    /// Redo last undone action
+    pub fn redo(&self, cx: &mut Cx) {
+        if let Some(mut inner) = self.borrow_mut() {
+            inner.redo(cx);
         }
     }
 }
