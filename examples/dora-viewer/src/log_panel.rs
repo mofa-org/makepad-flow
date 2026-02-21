@@ -274,46 +274,46 @@ impl Widget for LogPanel {
 impl WidgetMatchEvent for LogPanel {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions, scope: &mut Scope) {
         // Handle Clear button
-        if self.button(id!(clear_btn)).clicked(actions) {
+        if self.button(ids!(clear_btn)).clicked(actions) {
             cx.widget_action(self.widget_uid(), &scope.path, LogPanelAction::ClearLogs);
         }
 
         // Handle level filter buttons
-        if self.button(id!(filter_all_levels)).clicked(actions) {
+        if self.button(ids!(filter_all_levels)).clicked(actions) {
             self.level_filter = None;
             self.update_entry_count(cx);
             self.redraw(cx);
         }
-        if self.button(id!(filter_debug)).clicked(actions) {
+        if self.button(ids!(filter_debug)).clicked(actions) {
             self.level_filter = Some(LogLevel::Debug);
             self.update_entry_count(cx);
             self.redraw(cx);
         }
-        if self.button(id!(filter_info)).clicked(actions) {
+        if self.button(ids!(filter_info)).clicked(actions) {
             self.level_filter = Some(LogLevel::Info);
             self.update_entry_count(cx);
             self.redraw(cx);
         }
-        if self.button(id!(filter_warn)).clicked(actions) {
+        if self.button(ids!(filter_warn)).clicked(actions) {
             self.level_filter = Some(LogLevel::Warn);
             self.update_entry_count(cx);
             self.redraw(cx);
         }
-        if self.button(id!(filter_error)).clicked(actions) {
+        if self.button(ids!(filter_error)).clicked(actions) {
             self.level_filter = Some(LogLevel::Error);
             self.update_entry_count(cx);
             self.redraw(cx);
         }
 
         // Handle search input
-        if let Some(text) = self.text_input(id!(log_search)).changed(actions) {
+        if let Some(text) = self.text_input(ids!(log_search)).changed(actions) {
             self.search_filter = text;
             self.update_entry_count(cx);
             self.redraw(cx);
         }
 
         // Handle auto-scroll toggle
-        if let Some(checked) = self.check_box(id!(auto_scroll_toggle)).changed(actions) {
+        if let Some(checked) = self.check_box(ids!(auto_scroll_toggle)).changed(actions) {
             self.auto_scroll = checked;
         }
     }
@@ -346,7 +346,7 @@ impl LogPanel {
         } else {
             format!("{} entries", total_count)
         };
-        self.label(id!(entry_count)).set_text(cx, &text);
+        self.label(ids!(entry_count)).set_text(cx, &text);
     }
 
     fn filtered_entries(&self) -> impl Iterator<Item = &LogEntry> {

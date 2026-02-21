@@ -5,4 +5,4 @@ edition = "2021"
 description = "A flow/node editor widget for Makepad"
 
 [dependencies]
-makepad-widgets = { git = "https://github.com/makepad/makepad", branch = "rik" }
+makepad-widgets = { workspace = true }

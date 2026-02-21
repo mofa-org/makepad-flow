@@ -1839,12 +1839,12 @@ impl FlowCanvas {
 
         match shape {
             NodeShape::Round | NodeShape::Diamond => {
-                let laidout = self.draw_text.layout(cx, 0.0, 0.0, None, Align::default(), &display_title);
+                let laidout = self.draw_text.layout(cx, 0.0, 0.0, None, false, Align::default(), &display_title);
                 let text_w = laidout.size_in_lpxs.width as f64;
                 self.draw_text.draw_abs(cx, DVec2 { x: center.x - text_w / 2.0, y: center.y - 8.0 }, &display_title);
             }
             _ => {
-                let laidout = self.draw_text.layout(cx, 0.0, 0.0, None, Align::default(), &display_title);
+                let laidout = self.draw_text.layout(cx, 0.0, 0.0, None, false, Align::default(), &display_title);
                 let text_w = laidout.size_in_lpxs.width as f64;
                 let text_h = laidout.size_in_lpxs.height as f64;
                 let header_h = 32.0 * self.zoom;
@@ -1933,7 +1933,7 @@ impl FlowCanvas {
                 } else {
                     port.label.clone()
                 };
-                let laidout = self.draw_text.layout(cx, 0.0, 0.0, None, Align::default(), &label);
+                let laidout = self.draw_text.layout(cx, 0.0, 0.0, None, false, Align::default(), &label);
                 let text_w = laidout.size_in_lpxs.width as f64;
                 self.draw_text.draw_abs(cx, DVec2 { x: port_x - port_radius - text_w - 4.0, y: port_y - 5.0 }, &label);
             }
