@@ -41,6 +41,7 @@ live_design! {
                 width: Fill, height: Fill, flow: Down
 
                 // Top toolbar (light theme)
+                // Note: left padding is adjusted at runtime for macOS window controls
                 toolbar = <View> {
                     width: Fill, height: 44
                     padding: { left: 16, right: 16 }, spacing: 12, align: { y: 0.5 }
@@ -336,6 +337,13 @@ impl MatchEvent for App {
     fn handle_startup(&mut self, cx: &mut Cx) {
         // Initialize panel width
         self.left_panel_width = Self::DEFAULT_LEFT_WIDTH;
+
+        // Adjust toolbar padding for macOS window controls (traffic lights)
+        if let OsType::Macos = cx.os_type() {
+            self.ui.view(id!(toolbar)).apply_over(cx, live! {
+                padding: { left: 80.0, right: 16.0 }
+            });
+        }
 
         // Load dataflow YAML
         let yaml_paths = [
