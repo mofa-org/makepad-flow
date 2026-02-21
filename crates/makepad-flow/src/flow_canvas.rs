@@ -1,5 +1,6 @@
 use makepad_widgets::*;
 use std::collections::HashSet;
+use crate::constants::{node, port, edge, canvas};
 
 live_design! {
     use link::theme::*;
@@ -287,7 +288,7 @@ pub struct FlowNode {
 
 impl FlowNode {
     pub fn new(x: f64, y: f64, node_type: NodeType) -> Self {
-        let height = if node_type == NodeType::Camera { 80.0 } else { 100.0 };
+        let height = if node_type == NodeType::Camera { node::CAMERA_HEIGHT } else { node::DEFAULT_HEIGHT };
         let (input_ports, output_ports) = match node_type {
             NodeType::Camera => (vec![], vec![Port::new("image")]),
             NodeType::Visualizer => (vec![Port::new("input")], vec![]),
@@ -296,12 +297,12 @@ impl FlowNode {
         Self {
             id: format!("node_{}", x as i32 + y as i32),
             x, y,
-            width: 180.0,
+            width: node::WIDTH,
             height,
             node_type,
             title: node_type.title().to_string(),
             shape: NodeShape::RoundedRect,
-            border_width: 2.0,
+            border_width: node::BORDER_WIDTH,
             category: NodeCategory::Default,
             input_ports,
             output_ports,
@@ -310,20 +311,17 @@ impl FlowNode {
 
     pub fn new_dataflow(id: &str, x: f64, y: f64, title: &str, category: NodeCategory, inputs: Vec<Port>, outputs: Vec<Port>) -> Self {
         let port_count = inputs.len().max(outputs.len());
-        let header_height = 32.0;
-        let port_height = 20.0;
-        let padding = 16.0;
-        let height = header_height + (port_count as f64 * port_height) + padding;
+        let height = node::HEADER_HEIGHT + (port_count as f64 * node::PORT_HEIGHT) + node::BODY_PADDING;
 
         Self {
             id: id.to_string(),
             x, y,
-            width: 180.0,
-            height: height.max(80.0),
+            width: node::WIDTH,
+            height: height.max(node::MIN_HEIGHT),
             node_type: NodeType::Custom,
             title: title.to_string(),
             shape: NodeShape::DoubleRoundedRect,
-            border_width: 2.0,
+            border_width: node::BORDER_WIDTH,
             category,
             input_ports: inputs,
             output_ports: outputs,
@@ -337,25 +335,20 @@ impl FlowNode {
 
     // Get position for a specific input port by index
     pub fn input_port_pos(&self, index: usize) -> DVec2 {
-        let header_height = 32.0;
-        let port_height = 20.0;
-        let y = self.y + header_height + (index as f64 * port_height) + port_height / 2.0;
+        let y = self.y + node::HEADER_HEIGHT + (index as f64 * node::PORT_HEIGHT) + node::PORT_HEIGHT / 2.0;
         DVec2 { x: self.x, y }
     }
 
     // Get position for a specific output port by index
     pub fn output_port_pos(&self, index: usize) -> DVec2 {
-        let header_height = 32.0;
-        let port_height = 20.0;
-        let y = self.y + header_height + (index as f64 * port_height) + port_height / 2.0;
+        let y = self.y + node::HEADER_HEIGHT + (index as f64 * node::PORT_HEIGHT) + node::PORT_HEIGHT / 2.0;
         DVec2 { x: self.x + self.width, y }
     }
 
     // Legacy: first output port position
     pub fn output_pos(&self) -> DVec2 {
         if self.output_ports.is_empty() {
-            let y_offset = 54.0;
-            DVec2 { x: self.x + self.width, y: self.y + y_offset }
+            DVec2 { x: self.x + self.width, y: self.y + node::LEGACY_PORT_Y_OFFSET }
         } else {
             self.output_port_pos(0)
         }
@@ -364,7 +357,7 @@ impl FlowNode {
     // Legacy: first input port position
     pub fn input_pos(&self) -> DVec2 {
         if self.input_ports.is_empty() {
-            DVec2 { x: self.x, y: self.y + 54.0 }
+            DVec2 { x: self.x, y: self.y + node::LEGACY_PORT_Y_OFFSET }
         } else {
             self.input_port_pos(0)
         }
@@ -372,12 +365,12 @@ impl FlowNode {
 
     pub fn output_port_rect(&self) -> Rect {
         let pos = self.output_pos();
-        Rect { pos: DVec2 { x: pos.x - 12.0, y: pos.y - 6.0 }, size: DVec2 { x: 18.0, y: 18.0 } }
+        Rect { pos: DVec2 { x: pos.x - port::HIT_OFFSET_X, y: pos.y - port::HIT_OFFSET_Y }, size: DVec2 { x: port::HIT_SIZE, y: port::HIT_SIZE } }
     }
 
     pub fn input_port_rect(&self) -> Rect {
         let pos = self.input_pos();
-        Rect { pos: DVec2 { x: pos.x - 6.0, y: pos.y - 6.0 }, size: DVec2 { x: 18.0, y: 18.0 } }
+        Rect { pos: DVec2 { x: pos.x - port::HIT_OFFSET_Y, y: pos.y - port::HIT_OFFSET_Y }, size: DVec2 { x: port::HIT_SIZE, y: port::HIT_SIZE } }
     }
 
     // Find port index by id
@@ -422,7 +415,7 @@ impl EdgeConnection {
             from_port: String::new(),
             to_port: String::new(),
             style: 0.0,      // solid by default
-            width: 2.0,      // 2px default
+            width: edge::WIDTH_F32,
             animated: true,  // animated by default
             label: String::new(),
             marker_end: EdgeMarker::Arrow, // arrow by default
@@ -436,7 +429,7 @@ impl EdgeConnection {
             from_port: from_port.to_string(),
             to_port: to_port.to_string(),
             style: 0.0,
-            width: 2.0,
+            width: edge::WIDTH_F32,
             animated: false,  // dataflow edges not animated by default
             label: String::new(),
             marker_end: EdgeMarker::Arrow,
@@ -1026,7 +1019,7 @@ impl Widget for FlowCanvas {
                 // Zoom with scroll wheel
                 let zoom_delta = if se.scroll.y > 0.0 { 1.1 } else { 0.9 };
                 let local = self.screen_to_canvas(se.abs, area_rect);
-                self.zoom = (self.zoom * zoom_delta).clamp(0.25, 4.0);
+                self.zoom = (self.zoom * zoom_delta).clamp(canvas::MIN_ZOOM, canvas::MAX_ZOOM);
 
                 // Zoom toward cursor position
                 self.pan_offset.x = se.abs.x - area_rect.pos.x - (local.x * self.zoom);
@@ -1260,7 +1253,7 @@ impl FlowCanvas {
     /// anim_phase < 0 means animation is disabled
     fn draw_bezier_edge(&mut self, cx: &mut Cx2d, from: DVec2, to: DVec2, selected: bool, thickness: f64, style: f32, anim_phase: f64) {
         // Get bezier curve points - more segments for smoother curves
-        let points = BezierCurve::points_with_horizontal_tangents(from, to, 100);
+        let points = BezierCurve::points_with_horizontal_tangents(from, to, edge::BEZIER_SEGMENTS);
 
         // Calculate total curve length for animation
         let mut total_len = 0.0;
@@ -1318,7 +1311,7 @@ impl FlowCanvas {
 
                     // Draw flow particles
                     let particle_spacing = 30.0;
-                    let particle_size = thickness * 2.0;
+                    let particle_size = thickness * edge::PARTICLE_SIZE_MULTIPLIER;
                     let half_particle = particle_size * 0.5;
                     let anim_offset = phase * particle_spacing;
 
@@ -1385,8 +1378,8 @@ impl FlowCanvas {
             }
             1 => {
                 // Dashed line
-                let dash_len = 12.0;
-                let dash_gap = 8.0;
+                let dash_len = edge::DASH_LENGTH;
+                let dash_gap = edge::DASH_GAP;
                 let cycle = dash_len + dash_gap;
                 let dash_offset = if animated { phase * cycle } else { 0.0 };
 
@@ -1423,7 +1416,7 @@ impl FlowCanvas {
             }
             2 => {
                 // Dotted line
-                let dot_spacing = 12.0;
+                let dot_spacing = edge::DOT_SPACING;
                 let dot_size = thickness * 1.5;
                 let half_dot = dot_size * 0.5;
                 let dot_offset = if animated { phase * dot_spacing } else { 0.0 };
@@ -1550,7 +1543,7 @@ impl FlowCanvas {
                 y: mt3 * from.y + 3.0 * mt2 * t * c0.y + 3.0 * mt * t2 * c1.y + t3 * to.y,
             };
             let dist = ((point.x - bp.x).powi(2) + (point.y - bp.y).powi(2)).sqrt();
-            if dist < 8.0 {
+            if dist < edge::HIT_DISTANCE {
                 return true;
             }
         }
@@ -1589,8 +1582,8 @@ impl FlowCanvas {
         match shape {
             NodeShape::RoundedRect => {
                 // Draw rounded rectangle node with header (rounded top, straight bottom)
-                let corner_r = (8.0 * self.zoom) as f32;
-                let header_h = 32.0 * self.zoom;
+                let corner_r = (node::CORNER_RADIUS * self.zoom) as f32;
+                let header_h = node::HEADER_HEIGHT * self.zoom;
                 let bw = if selected { border_width.max(2.0) as f32 } else { border_width as f32 };
                 let bc = if selected { border_color } else { vec4(0.88, 0.88, 0.88, 1.0) }; // #e0e0e0
                 let inset = bw as f64;
@@ -1619,8 +1612,8 @@ impl FlowCanvas {
             }
             NodeShape::DoubleRoundedRect => {
                 // Draw fully rounded rectangle node (rounded top header + rounded bottom body)
-                let corner_r = (8.0 * self.zoom) as f32;
-                let header_h = 32.0 * self.zoom;
+                let corner_r = (node::CORNER_RADIUS * self.zoom) as f32;
+                let header_h = node::HEADER_HEIGHT * self.zoom;
                 let bw = if selected { border_width.max(2.0) as f32 } else { border_width as f32 };
                 let bc = if selected { border_color } else { vec4(0.88, 0.88, 0.88, 1.0) }; // #e0e0e0
                 let inset = bw as f64;
@@ -1847,15 +1840,15 @@ impl FlowCanvas {
                 let laidout = self.draw_text.layout(cx, 0.0, 0.0, None, false, Align::default(), &display_title);
                 let text_w = laidout.size_in_lpxs.width as f64;
                 let text_h = laidout.size_in_lpxs.height as f64;
-                let header_h = 32.0 * self.zoom;
+                let header_h = node::HEADER_HEIGHT * self.zoom;
                 self.draw_text.draw_abs(cx, DVec2 { x: center.x - text_w / 2.0, y: pos.y + (header_h - text_h) / 2.0 }, &display_title);
             }
         }
 
         // Draw ports
-        let port_radius = 5.0 * self.zoom;
-        let port_height = 20.0 * self.zoom;
-        let header_h = 32.0 * self.zoom;
+        let port_radius = port::RADIUS * self.zoom;
+        let port_height = node::PORT_HEIGHT * self.zoom;
+        let header_h = node::HEADER_HEIGHT * self.zoom;
 
         // For Round/Diamond shapes, use legacy single port
         if matches!(shape, NodeShape::Round | NodeShape::Diamond) {
@@ -2097,7 +2090,7 @@ impl FlowCanvas {
             edges: self.edges.clone(),
         });
         // Limit undo stack size
-        if self.undo_stack.len() > 50 {
+        if self.undo_stack.len() > canvas::UNDO_STACK_SIZE {
             self.undo_stack.remove(0);
         }
         // Clear redo stack on new action
@@ -2158,7 +2151,7 @@ impl FlowCanvas {
         }
 
         // Add padding
-        let padding = 50.0;
+        let padding = canvas::FIT_VIEW_PADDING;
         min_x -= padding;
         min_y -= padding;
 
@@ -2191,7 +2184,7 @@ impl FlowCanvas {
         let nx = dir_x / len;
         let ny = dir_y / len;
 
-        let arrow_size = thickness * 4.0;
+        let arrow_size = thickness * edge::ARROW_SIZE_MULTIPLIER;
 
         match marker {
             EdgeMarker::Arrow | EdgeMarker::ArrowFilled => {
