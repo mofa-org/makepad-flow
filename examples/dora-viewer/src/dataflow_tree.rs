@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-use makepad_widgets::*;
-use makepad_widgets::file_tree::{FileTree, FileTreeAction};
 use makepad_flow::NodeCategory;
+use makepad_widgets::file_tree::{FileTree, FileTreeAction};
+use makepad_widgets::*;
 use std::collections::HashMap;
 
 pub fn register_live_design(cx: &mut Cx) {
@@ -305,10 +305,20 @@ struct FileNode {
 #[derive(Debug, Clone)]
 enum TreeItemType {
     Root,
-    Node { node_id: String },
-    InputsFolder { node_id: String },
-    OutputsFolder { node_id: String },
-    Port { node_id: String, port_id: String, is_input: bool },
+    Node {
+        node_id: String,
+    },
+    InputsFolder {
+        node_id: String,
+    },
+    OutputsFolder {
+        node_id: String,
+    },
+    Port {
+        node_id: String,
+        port_id: String,
+        is_input: bool,
+    },
 }
 
 #[derive(Debug)]
@@ -321,11 +331,24 @@ struct FileEdge {
 #[derive(Clone, Debug, DefaultNone)]
 pub enum DataflowTreeAction {
     None,
-    NodeEnabledChanged { node_id: String, enabled: bool },
-    PortEnabledChanged { node_id: String, port_id: String, enabled: bool },
-    NodeSelected { node_id: String },
-    SearchChanged { text: String },
-    FilterCategory { category: Option<NodeCategory> },
+    NodeEnabledChanged {
+        node_id: String,
+        enabled: bool,
+    },
+    PortEnabledChanged {
+        node_id: String,
+        port_id: String,
+        enabled: bool,
+    },
+    NodeSelected {
+        node_id: String,
+    },
+    SearchChanged {
+        text: String,
+    },
+    FilterCategory {
+        category: Option<NodeCategory>,
+    },
     ExpandAll,
     CollapseAll,
     EnableAllNodes,
@@ -339,7 +362,8 @@ pub enum DataflowTreeAction {
 
 #[derive(Live, LiveHook, Widget)]
 pub struct DataflowTreeHeader {
-    #[deref] view: View,
+    #[deref]
+    view: View,
 }
 
 impl Widget for DataflowTreeHeader {
@@ -356,36 +380,69 @@ impl Widget for DataflowTreeHeader {
 impl WidgetMatchEvent for DataflowTreeHeader {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions, scope: &mut Scope) {
         if let Some(text) = self.view.text_input(ids!(search_input)).changed(actions) {
-            cx.widget_action(self.widget_uid(), &scope.path,
-                DataflowTreeAction::SearchChanged { text });
+            cx.widget_action(
+                self.widget_uid(),
+                &scope.path,
+                DataflowTreeAction::SearchChanged { text },
+            );
         }
 
         if self.view.button(ids!(filter_all)).clicked(actions) {
-            cx.widget_action(self.widget_uid(), &scope.path,
-                DataflowTreeAction::FilterCategory { category: None });
+            cx.widget_action(
+                self.widget_uid(),
+                &scope.path,
+                DataflowTreeAction::FilterCategory { category: None },
+            );
         }
         if self.view.button(ids!(filter_maas)).clicked(actions) {
-            cx.widget_action(self.widget_uid(), &scope.path,
-                DataflowTreeAction::FilterCategory { category: Some(NodeCategory::MaaS) });
+            cx.widget_action(
+                self.widget_uid(),
+                &scope.path,
+                DataflowTreeAction::FilterCategory {
+                    category: Some(NodeCategory::MaaS),
+                },
+            );
         }
         if self.view.button(ids!(filter_tts)).clicked(actions) {
-            cx.widget_action(self.widget_uid(), &scope.path,
-                DataflowTreeAction::FilterCategory { category: Some(NodeCategory::TTS) });
+            cx.widget_action(
+                self.widget_uid(),
+                &scope.path,
+                DataflowTreeAction::FilterCategory {
+                    category: Some(NodeCategory::TTS),
+                },
+            );
         }
         if self.view.button(ids!(filter_bridge)).clicked(actions) {
-            cx.widget_action(self.widget_uid(), &scope.path,
-                DataflowTreeAction::FilterCategory { category: Some(NodeCategory::Bridge) });
+            cx.widget_action(
+                self.widget_uid(),
+                &scope.path,
+                DataflowTreeAction::FilterCategory {
+                    category: Some(NodeCategory::Bridge),
+                },
+            );
         }
 
         if self.view.button(ids!(expand_all)).clicked(actions) {
-            cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::ExpandAll);
+            cx.widget_action(
+                self.widget_uid(),
+                &scope.path,
+                DataflowTreeAction::ExpandAll,
+            );
         }
         if self.view.button(ids!(collapse_all)).clicked(actions) {
-            cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::CollapseAll);
+            cx.widget_action(
+                self.widget_uid(),
+                &scope.path,
+                DataflowTreeAction::CollapseAll,
+            );
         }
         if self.view.button(ids!(toggle_match)).clicked(actions) {
             log!("DataflowTreeHeader: Toggle Match button clicked");
-            cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::ToggleMatchingPorts);
+            cx.widget_action(
+                self.widget_uid(),
+                &scope.path,
+                DataflowTreeAction::ToggleMatchingPorts,
+            );
         }
     }
 }
@@ -396,7 +453,8 @@ impl WidgetMatchEvent for DataflowTreeHeader {
 
 #[derive(Live, LiveHook, Widget)]
 pub struct DataflowTreeFooter {
-    #[deref] view: View,
+    #[deref]
+    view: View,
 }
 
 impl Widget for DataflowTreeFooter {
@@ -413,21 +471,36 @@ impl Widget for DataflowTreeFooter {
 impl WidgetMatchEvent for DataflowTreeFooter {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions, scope: &mut Scope) {
         if self.view.button(ids!(enable_selected)).clicked(actions) {
-            cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::EnableAllNodes);
+            cx.widget_action(
+                self.widget_uid(),
+                &scope.path,
+                DataflowTreeAction::EnableAllNodes,
+            );
         }
         if self.view.button(ids!(disable_selected)).clicked(actions) {
-            cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::DisableAllNodes);
+            cx.widget_action(
+                self.widget_uid(),
+                &scope.path,
+                DataflowTreeAction::DisableAllNodes,
+            );
         }
         if self.view.button(ids!(toggle_matching)).clicked(actions) {
-            cx.widget_action(self.widget_uid(), &scope.path, DataflowTreeAction::ToggleMatchingPorts);
+            cx.widget_action(
+                self.widget_uid(),
+                &scope.path,
+                DataflowTreeAction::ToggleMatchingPorts,
+            );
         }
     }
 }
 
 impl DataflowTreeFooterRef {
     pub fn set_node_count(&self, cx: &mut Cx, count: usize) {
-        if let Some(mut inner) = self.borrow_mut() {
-            inner.view.label(ids!(node_count)).set_text(cx, &format!("{} nodes", count));
+        if let Some(inner) = self.borrow_mut() {
+            inner
+                .view
+                .label(ids!(node_count))
+                .set_text(cx, &format!("{} nodes", count));
         }
     }
 }
@@ -442,16 +515,25 @@ pub struct DataflowTree {
     #[live]
     pub file_tree: FileTree,
 
-    #[rust] nodes: Vec<TreeNode>,
-    #[rust] search_filter: String,
-    #[rust] category_filter: Option<NodeCategory>,
-    #[rust] selected_node: Option<String>,
-    #[rust] file_nodes: LiveIdMap<LiveId, FileNode>,
-    #[rust] node_id_to_live_id: HashMap<String, LiveId>,
-    #[rust] live_id_counter: u64,
-    #[rust] initialized: bool,
+    #[rust]
+    nodes: Vec<TreeNode>,
+    #[rust]
+    search_filter: String,
+    #[rust]
+    category_filter: Option<NodeCategory>,
+    #[rust]
+    selected_node: Option<String>,
+    #[rust]
+    file_nodes: LiveIdMap<LiveId, FileNode>,
+    #[rust]
+    node_id_to_live_id: HashMap<String, LiveId>,
+    #[rust]
+    live_id_counter: u64,
+    #[rust]
+    initialized: bool,
     // Track folder open states so we can restore them on Ctrl+click
-    #[rust] folder_open_states: HashMap<LiveId, bool>,
+    #[rust]
+    folder_open_states: HashMap<LiveId, bool>,
 }
 
 impl Widget for DataflowTree {
@@ -463,10 +545,12 @@ impl Widget for DataflowTree {
         // Handle keyboard shortcuts for batch operations
         if let Event::KeyDown(key_event) = event {
             // Ctrl+Shift+D: Toggle all ports matching the search filter
-            if ctrl_held && shift_held && key_event.key_code == KeyCode::KeyD {
-                if !self.search_filter.is_empty() {
-                    self.toggle_matching_ports(cx, scope);
-                }
+            if ctrl_held
+                && shift_held
+                && key_event.key_code == KeyCode::KeyD
+                && !self.search_filter.is_empty()
+            {
+                self.toggle_matching_ports(cx, scope);
             }
         }
 
@@ -492,11 +576,16 @@ impl Widget for DataflowTree {
                         // Restore the fold state from our tracked state
                         // FileTree just toggled it, so we set it back to what we had
                         if let Some(&was_open) = self.folder_open_states.get(&file_id) {
-                            self.file_tree.set_folder_is_open(cx, file_id.into(), was_open, Animate::No);
+                            self.file_tree
+                                .set_folder_is_open(cx, file_id, was_open, Animate::No);
                         }
                     } else {
                         // Normal click - update our tracked state (toggled from previous)
-                        let was_open = self.folder_open_states.get(&file_id).copied().unwrap_or(false);
+                        let was_open = self
+                            .folder_open_states
+                            .get(&file_id)
+                            .copied()
+                            .unwrap_or(false);
                         self.folder_open_states.insert(file_id, !was_open);
                     }
                 }
@@ -517,7 +606,8 @@ impl Widget for DataflowTree {
         while self.file_tree.draw_walk(cx, scope, walk).is_step() {
             // Sync all folder states with FileTree
             for (&folder_id, &is_open) in &self.folder_open_states {
-                self.file_tree.set_folder_is_open(cx, folder_id.into(), is_open, Animate::No);
+                self.file_tree
+                    .set_folder_is_open(cx, folder_id, is_open, Animate::No);
             }
 
             // Draw the tree starting from root
@@ -583,34 +673,57 @@ impl DataflowTree {
                         for port in &mut node.ports {
                             port.enabled = new_state;
                         }
-                        log!("Toggled node {} and all ports to enabled={}", node_id, new_state);
-                        cx.widget_action(self.widget_uid(), &scope.path,
+                        log!(
+                            "Toggled node {} and all ports to enabled={}",
+                            node_id,
+                            new_state
+                        );
+                        cx.widget_action(
+                            self.widget_uid(),
+                            &scope.path,
                             DataflowTreeAction::NodeEnabledChanged {
                                 node_id,
-                                enabled: new_state
-                            });
+                                enabled: new_state,
+                            },
+                        );
                         // Rebuild tree data synchronously to keep FileTree cache in sync
                         self.build_file_tree_data();
                         self.file_tree.redraw(cx);
                     }
                 }
-                TreeItemType::Port { node_id, port_id, is_input } => {
+                TreeItemType::Port {
+                    node_id,
+                    port_id,
+                    is_input,
+                } => {
                     // Toggle individual port - updates parent node state
                     let node_id = node_id.clone();
                     let port_id = port_id.clone();
                     let is_input = *is_input;
                     if let Some(node) = self.nodes.iter_mut().find(|n| n.id == node_id) {
                         // Match both port_id AND is_input to handle duplicate port names
-                        if let Some(port) = node.ports.iter_mut().find(|p| p.id == port_id && p.is_input == is_input) {
+                        if let Some(port) = node
+                            .ports
+                            .iter_mut()
+                            .find(|p| p.id == port_id && p.is_input == is_input)
+                        {
                             port.enabled = !port.enabled;
                             let enabled = port.enabled;
-                            log!("Toggled port {}/{} to enabled={}", node_id, port_id, enabled);
-                            cx.widget_action(self.widget_uid(), &scope.path,
+                            log!(
+                                "Toggled port {}/{} to enabled={}",
+                                node_id,
+                                port_id,
+                                enabled
+                            );
+                            cx.widget_action(
+                                self.widget_uid(),
+                                &scope.path,
                                 DataflowTreeAction::PortEnabledChanged {
                                     node_id: node_id.clone(),
                                     port_id,
-                                    enabled
-                                });
+                                    enabled,
+                                },
+                            );
                         }
                         // Update node enabled state based on children
                         self.update_node_state_from_children(&node_id);
@@ -623,19 +736,27 @@ impl DataflowTree {
                     // Toggle all inputs - updates parent node state
                     let node_id = node_id.clone();
                     if let Some(node) = self.nodes.iter_mut().find(|n| n.id == node_id) {
-                        let any_enabled = node.ports.iter().filter(|p| p.is_input).any(|p| p.enabled);
+                        let any_enabled =
+                            node.ports.iter().filter(|p| p.is_input).any(|p| p.enabled);
                         let new_state = !any_enabled;
                         for port in node.ports.iter_mut().filter(|p| p.is_input) {
                             port.enabled = new_state;
                         }
-                        log!("Toggled all inputs for {} to enabled={}", node_id, new_state);
+                        log!(
+                            "Toggled all inputs for {} to enabled={}",
+                            node_id,
+                            new_state
+                        );
                         // Emit action to notify app that ports changed
-                        cx.widget_action(self.widget_uid(), &scope.path,
+                        cx.widget_action(
+                            self.widget_uid(),
+                            &scope.path,
                             DataflowTreeAction::PortEnabledChanged {
                                 node_id: node_id.clone(),
-                                port_id: "inputs".to_string(),  // Special marker for batch update
-                                enabled: new_state
-                            });
+                                port_id: "inputs".to_string(), // Special marker for batch update
+                                enabled: new_state,
+                            },
+                        );
                     }
                     // Update node enabled state based on children
                     self.update_node_state_from_children(&node_id);
@@ -647,19 +768,27 @@ impl DataflowTree {
                     // Toggle all outputs - updates parent node state
                     let node_id = node_id.clone();
                     if let Some(node) = self.nodes.iter_mut().find(|n| n.id == node_id) {
-                        let any_enabled = node.ports.iter().filter(|p| !p.is_input).any(|p| p.enabled);
+                        let any_enabled =
+                            node.ports.iter().filter(|p| !p.is_input).any(|p| p.enabled);
                         let new_state = !any_enabled;
                         for port in node.ports.iter_mut().filter(|p| !p.is_input) {
                             port.enabled = new_state;
                         }
-                        log!("Toggled all outputs for {} to enabled={}", node_id, new_state);
+                        log!(
+                            "Toggled all outputs for {} to enabled={}",
+                            node_id,
+                            new_state
+                        );
                         // Emit action to notify app that ports changed
-                        cx.widget_action(self.widget_uid(), &scope.path,
+                        cx.widget_action(
+                            self.widget_uid(),
+                            &scope.path,
                             DataflowTreeAction::PortEnabledChanged {
                                 node_id: node_id.clone(),
-                                port_id: "outputs".to_string(),  // Special marker for batch update
-                                enabled: new_state
-                            });
+                                port_id: "outputs".to_string(), // Special marker for batch update
+                                enabled: new_state,
+                            },
+                        );
                     }
                     // Update node enabled state based on children
                     self.update_node_state_from_children(&node_id);
@@ -679,11 +808,14 @@ impl DataflowTree {
                     }
                     log!("Toggled all nodes to enabled={}", new_state);
                     // Emit action to notify app that everything changed
-                    cx.widget_action(self.widget_uid(), &scope.path,
+                    cx.widget_action(
+                        self.widget_uid(),
+                        &scope.path,
                         DataflowTreeAction::NodeEnabledChanged {
                             node_id: "__root__".to_string(),
-                            enabled: new_state
-                        });
+                            enabled: new_state,
+                        },
+                    );
                     // Rebuild tree data synchronously to keep FileTree cache in sync
                     self.build_file_tree_data();
                     self.file_tree.redraw(cx);
@@ -707,8 +839,13 @@ impl DataflowTree {
             // Node shows partial (◐) if some but not all are enabled
             // For the enabled flag, we'll use: enabled if ANY child is enabled
             node.enabled = any_enabled;
-            log!("Updated node {} state: enabled={}, all_enabled={}, any_enabled={}",
-                 node_id, node.enabled, all_enabled, any_enabled);
+            log!(
+                "Updated node {} state: enabled={}, all_enabled={}, any_enabled={}",
+                node_id,
+                node.enabled,
+                all_enabled,
+                any_enabled
+            );
         }
     }
 
@@ -751,7 +888,12 @@ impl DataflowTree {
             }
         }
 
-        log!("Toggled {} ports matching '{}' to enabled={}", total_toggled, self.search_filter, new_state);
+        log!(
+            "Toggled {} ports matching '{}' to enabled={}",
+            total_toggled,
+            self.search_filter,
+            new_state
+        );
 
         // Update node states based on their children
         for node_id in &affected_node_ids {
@@ -759,12 +901,15 @@ impl DataflowTree {
         }
 
         // Emit action to notify app
-        cx.widget_action(self.widget_uid(), &scope.path,
+        cx.widget_action(
+            self.widget_uid(),
+            &scope.path,
             DataflowTreeAction::PortEnabledChanged {
                 node_id: "__batch__".to_string(),
                 port_id: self.search_filter.clone(),
-                enabled: new_state
-            });
+                enabled: new_state,
+            },
+        );
 
         // Rebuild tree and redraw
         self.build_file_tree_data();
@@ -824,9 +969,17 @@ impl DataflowTree {
                         file_node.name = format!("{} outputs", status);
                     }
                 }
-                TreeItemType::Port { node_id, port_id, is_input } => {
+                TreeItemType::Port {
+                    node_id,
+                    port_id,
+                    is_input,
+                } => {
                     if let Some(node) = self.nodes.iter().find(|n| n.id == *node_id) {
-                        if let Some(port) = node.ports.iter().find(|p| p.id == *port_id && p.is_input == *is_input) {
+                        if let Some(port) = node
+                            .ports
+                            .iter()
+                            .find(|p| p.id == *port_id && p.is_input == *is_input)
+                        {
                             let status = if port.enabled { "●" } else { "○" };
                             file_node.name = format!("{} {}", status, port.id);
                         }
@@ -845,9 +998,17 @@ impl DataflowTree {
         if let Some(file_node) = file_nodes.get(&file_node_id) {
             match &file_node.child_edges {
                 Some(child_edges) => {
-                    if file_tree.begin_folder(cx, file_node_id, &file_node.name).is_ok() {
+                    if file_tree
+                        .begin_folder(cx, file_node_id, &file_node.name)
+                        .is_ok()
+                    {
                         for child_edge in child_edges {
-                            Self::draw_file_node(cx, child_edge.file_node_id, file_tree, file_nodes);
+                            Self::draw_file_node(
+                                cx,
+                                child_edge.file_node_id,
+                                file_tree,
+                                file_nodes,
+                            );
                         }
                         file_tree.end_folder();
                     }
@@ -882,7 +1043,8 @@ impl DataflowTree {
             // Generate unique LiveId for this node
             let node_live_id = LiveId(self.live_id_counter);
             self.live_id_counter += 1;
-            self.node_id_to_live_id.insert(node.id.clone(), node_live_id);
+            self.node_id_to_live_id
+                .insert(node.id.clone(), node_live_id);
 
             // Build port edges
             let mut port_edges = Vec::new();
@@ -899,15 +1061,18 @@ impl DataflowTree {
                     self.live_id_counter += 1;
 
                     let port_status = if port.enabled { "●" } else { "○" };
-                    self.file_nodes.insert(port_live_id, FileNode {
-                        name: format!("{} -> {}", port_status, port.label),
-                        child_edges: None,
-                        item_type: TreeItemType::Port {
-                            node_id: node.id.clone(),
-                            port_id: port.id.clone(),
-                            is_input: true,
+                    self.file_nodes.insert(
+                        port_live_id,
+                        FileNode {
+                            name: format!("{} -> {}", port_status, port.label),
+                            child_edges: None,
+                            item_type: TreeItemType::Port {
+                                node_id: node.id.clone(),
+                                port_id: port.id.clone(),
+                                is_input: true,
+                            },
                         },
-                    });
+                    );
 
                     input_edges.push(FileEdge {
                         name: port.label.clone(),
@@ -916,14 +1081,32 @@ impl DataflowTree {
                 }
 
                 let inputs_enabled = inputs.iter().filter(|p| p.enabled).count();
-                let inputs_status = if inputs_enabled == inputs.len() { "●" } else if inputs_enabled > 0 { "◐" } else { "○" };
-                self.file_nodes.insert(inputs_live_id, FileNode {
-                    name: format!("{} Inputs ({}/{})", inputs_status, inputs_enabled, inputs.len()),
-                    child_edges: Some(input_edges),
-                    item_type: TreeItemType::InputsFolder { node_id: node.id.clone() },
-                });
+                let inputs_status = if inputs_enabled == inputs.len() {
+                    "●"
+                } else if inputs_enabled > 0 {
+                    "◐"
+                } else {
+                    "○"
+                };
+                self.file_nodes.insert(
+                    inputs_live_id,
+                    FileNode {
+                        name: format!(
+                            "{} Inputs ({}/{})",
+                            inputs_status,
+                            inputs_enabled,
+                            inputs.len()
+                        ),
+                        child_edges: Some(input_edges),
+                        item_type: TreeItemType::InputsFolder {
+                            node_id: node.id.clone(),
+                        },
+                    },
+                );
                 // Track folder state (initially closed, preserve if already tracked)
-                self.folder_open_states.entry(inputs_live_id).or_insert(false);
+                self.folder_open_states
+                    .entry(inputs_live_id)
+                    .or_insert(false);
 
                 port_edges.push(FileEdge {
                     name: "Inputs".to_string(),
@@ -943,15 +1126,18 @@ impl DataflowTree {
                     self.live_id_counter += 1;
 
                     let port_status = if port.enabled { "●" } else { "○" };
-                    self.file_nodes.insert(port_live_id, FileNode {
-                        name: format!("{} <- {}", port_status, port.label),
-                        child_edges: None,
-                        item_type: TreeItemType::Port {
-                            node_id: node.id.clone(),
-                            port_id: port.id.clone(),
-                            is_input: false,
+                    self.file_nodes.insert(
+                        port_live_id,
+                        FileNode {
+                            name: format!("{} <- {}", port_status, port.label),
+                            child_edges: None,
+                            item_type: TreeItemType::Port {
+                                node_id: node.id.clone(),
+                                port_id: port.id.clone(),
+                                is_input: false,
+                            },
                         },
-                    });
+                    );
 
                     output_edges.push(FileEdge {
                         name: port.label.clone(),
@@ -960,14 +1146,32 @@ impl DataflowTree {
                 }
 
                 let outputs_enabled = outputs.iter().filter(|p| p.enabled).count();
-                let outputs_status = if outputs_enabled == outputs.len() { "●" } else if outputs_enabled > 0 { "◐" } else { "○" };
-                self.file_nodes.insert(outputs_live_id, FileNode {
-                    name: format!("{} Outputs ({}/{})", outputs_status, outputs_enabled, outputs.len()),
-                    child_edges: Some(output_edges),
-                    item_type: TreeItemType::OutputsFolder { node_id: node.id.clone() },
-                });
+                let outputs_status = if outputs_enabled == outputs.len() {
+                    "●"
+                } else if outputs_enabled > 0 {
+                    "◐"
+                } else {
+                    "○"
+                };
+                self.file_nodes.insert(
+                    outputs_live_id,
+                    FileNode {
+                        name: format!(
+                            "{} Outputs ({}/{})",
+                            outputs_status,
+                            outputs_enabled,
+                            outputs.len()
+                        ),
+                        child_edges: Some(output_edges),
+                        item_type: TreeItemType::OutputsFolder {
+                            node_id: node.id.clone(),
+                        },
+                    },
+                );
                 // Track folder state (initially closed, preserve if already tracked)
-                self.folder_open_states.entry(outputs_live_id).or_insert(false);
+                self.folder_open_states
+                    .entry(outputs_live_id)
+                    .or_insert(false);
 
                 port_edges.push(FileEdge {
                     name: "Outputs".to_string(),
@@ -978,11 +1182,21 @@ impl DataflowTree {
             // Node as folder with ports as children
             // Show ● if all ports enabled, ○ if none, ◐ if partial
             let status = if node.ports.is_empty() {
-                if node.enabled { "●" } else { "○" }
+                if node.enabled {
+                    "●"
+                } else {
+                    "○"
+                }
             } else {
                 let all_enabled = node.ports.iter().all(|p| p.enabled);
                 let any_enabled = node.ports.iter().any(|p| p.enabled);
-                if all_enabled { "●" } else if any_enabled { "◐" } else { "○" }
+                if all_enabled {
+                    "●"
+                } else if any_enabled {
+                    "◐"
+                } else {
+                    "○"
+                }
             };
             let category_prefix = match node.category {
                 NodeCategory::MaaS => "[MaaS]",
@@ -1002,18 +1216,28 @@ impl DataflowTree {
 
             if port_edges.is_empty() {
                 // Node with no ports - show as file
-                self.file_nodes.insert(node_live_id, FileNode {
-                    name: node_name,
-                    child_edges: None,
-                    item_type: TreeItemType::Node { node_id: node.id.clone() },
-                });
+                self.file_nodes.insert(
+                    node_live_id,
+                    FileNode {
+                        name: node_name,
+                        child_edges: None,
+                        item_type: TreeItemType::Node {
+                            node_id: node.id.clone(),
+                        },
+                    },
+                );
             } else {
                 // Node with ports - show as folder
-                self.file_nodes.insert(node_live_id, FileNode {
-                    name: node_name,
-                    child_edges: Some(port_edges),
-                    item_type: TreeItemType::Node { node_id: node.id.clone() },
-                });
+                self.file_nodes.insert(
+                    node_live_id,
+                    FileNode {
+                        name: node_name,
+                        child_edges: Some(port_edges),
+                        item_type: TreeItemType::Node {
+                            node_id: node.id.clone(),
+                        },
+                    },
+                );
                 // Track folder state (initially closed, preserve if already tracked)
                 self.folder_open_states.entry(node_live_id).or_insert(false);
             }
@@ -1026,14 +1250,29 @@ impl DataflowTree {
 
         // Create root node with status based on all nodes
         let root_id = live_id!(dataflow_root);
-        let all_nodes_enabled = self.nodes.iter().all(|n| n.enabled && n.ports.iter().all(|p| p.enabled));
-        let any_nodes_enabled = self.nodes.iter().any(|n| n.enabled || n.ports.iter().any(|p| p.enabled));
-        let root_status = if all_nodes_enabled { "●" } else if any_nodes_enabled { "◐" } else { "○" };
-        self.file_nodes.insert(root_id, FileNode {
-            name: format!("{} Dataflow ({} nodes)", root_status, root_edges.len()),
-            child_edges: Some(root_edges),
-            item_type: TreeItemType::Root,
-        });
+        let all_nodes_enabled = self
+            .nodes
+            .iter()
+            .all(|n| n.enabled && n.ports.iter().all(|p| p.enabled));
+        let any_nodes_enabled = self
+            .nodes
+            .iter()
+            .any(|n| n.enabled || n.ports.iter().any(|p| p.enabled));
+        let root_status = if all_nodes_enabled {
+            "●"
+        } else if any_nodes_enabled {
+            "◐"
+        } else {
+            "○"
+        };
+        self.file_nodes.insert(
+            root_id,
+            FileNode {
+                name: format!("{} Dataflow ({} nodes)", root_status, root_edges.len()),
+                child_edges: Some(root_edges),
+                item_type: TreeItemType::Root,
+            },
+        );
         // Root starts open (preserve if already tracked)
         self.folder_open_states.entry(root_id).or_insert(true);
     }
@@ -1089,7 +1328,8 @@ impl DataflowTree {
     pub fn expand_all(&mut self, cx: &mut Cx) {
         for (live_id, node) in self.file_nodes.iter() {
             if node.child_edges.is_some() {
-                self.file_tree.set_folder_is_open(cx, (*live_id).into(), true, Animate::No);
+                self.file_tree
+                    .set_folder_is_open(cx, *live_id, true, Animate::No);
             }
         }
         self.file_tree.redraw(cx);
@@ -1098,7 +1338,8 @@ impl DataflowTree {
     pub fn collapse_all(&mut self, cx: &mut Cx) {
         for (live_id, node) in self.file_nodes.iter() {
             if node.child_edges.is_some() && *live_id != live_id!(dataflow_root) {
-                self.file_tree.set_folder_is_open(cx, (*live_id).into(), false, Animate::No);
+                self.file_tree
+                    .set_folder_is_open(cx, *live_id, false, Animate::No);
             }
         }
         self.file_tree.redraw(cx);
@@ -1124,7 +1365,7 @@ impl DataflowTree {
             for port in &node.ports {
                 states.insert(
                     (node.id.clone(), port.id.clone(), port.is_input),
-                    port.enabled
+                    port.enabled,
                 );
             }
         }
@@ -1133,7 +1374,8 @@ impl DataflowTree {
 
     /// Get enabled state for all nodes
     pub fn get_node_enabled_states(&self) -> HashMap<String, bool> {
-        self.nodes.iter()
+        self.nodes
+            .iter()
             .map(|n| (n.id.clone(), n.enabled))
             .collect()
     }
@@ -1198,7 +1440,12 @@ impl DataflowTreeRef {
     /// Check if a port's enabled state changed
     pub fn port_enabled_changed(&self, actions: &Actions) -> Option<(String, String, bool)> {
         if let Some(item) = actions.find_widget_action(self.widget_uid()) {
-            if let DataflowTreeAction::PortEnabledChanged { node_id, port_id, enabled } = item.cast() {
+            if let DataflowTreeAction::PortEnabledChanged {
+                node_id,
+                port_id,
+                enabled,
+            } = item.cast()
+            {
                 return Some((node_id, port_id, enabled));
             }
         }
@@ -1267,7 +1514,12 @@ impl DataflowTreeRef {
                 return false;
             }
 
-            log!("Toggled {} ports matching '{}' to enabled={}", total_toggled, inner.search_filter, new_state);
+            log!(
+                "Toggled {} ports matching '{}' to enabled={}",
+                total_toggled,
+                inner.search_filter,
+                new_state
+            );
 
             // Update node states based on their children
             for node_id in &affected_node_ids {

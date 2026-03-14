@@ -252,12 +252,17 @@ pub enum LogPanelAction {
 
 #[derive(Live, LiveHook, Widget)]
 pub struct LogPanel {
-    #[deref] view: View,
+    #[deref]
+    view: View,
 
-    #[rust] entries: Vec<LogEntry>,
-    #[rust] search_filter: String,
-    #[rust] level_filter: Option<LogLevel>,
-    #[rust] auto_scroll: bool,
+    #[rust]
+    entries: Vec<LogEntry>,
+    #[rust]
+    search_filter: String,
+    #[rust]
+    level_filter: Option<LogLevel>,
+    #[rust]
+    auto_scroll: bool,
 }
 
 impl Widget for LogPanel {
@@ -362,7 +367,8 @@ impl LogPanel {
             if !self.search_filter.is_empty() {
                 let search_lower = self.search_filter.to_lowercase();
                 if !entry.message.to_lowercase().contains(&search_lower)
-                    && !entry.node_id.to_lowercase().contains(&search_lower) {
+                    && !entry.node_id.to_lowercase().contains(&search_lower)
+                {
                     return false;
                 }
             }

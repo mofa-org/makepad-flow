@@ -7,4 +7,4 @@ members = [
 ]
 
 [workspace.dependencies]
-makepad-widgets = { git = "https://github.com/makepad/makepad", branch = "dev" }
+makepad-widgets = { git = "https://github.com/makepad/makepad", rev = "8350b6bf86f603ad55441bf82d05feb51f4fd383" }
