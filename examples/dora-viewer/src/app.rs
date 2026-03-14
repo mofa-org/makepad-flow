@@ -1,10 +1,13 @@
 use makepad_flow::*;
 use makepad_widgets::*;
-use std::collections::HashMap;
 use serde::Deserialize;
+use std::collections::HashMap;
 
-use crate::dataflow_tree::{DataflowTreeWidgetRefExt, DataflowTreeHeaderWidgetRefExt, DataflowTreeFooterWidgetRefExt, DataflowTreeAction, TreeNode, TreePort};
-use crate::log_panel::{LogPanelWidgetRefExt, LogEntry, LogLevel};
+use crate::dataflow_tree::{
+    DataflowTreeFooterWidgetRefExt, DataflowTreeHeaderWidgetRefExt, DataflowTreeWidgetRefExt,
+    TreeNode, TreePort,
+};
+use crate::log_panel::{LogEntry, LogLevel, LogPanelWidgetRefExt};
 
 live_design! {
     use link::theme::*;
@@ -186,8 +189,8 @@ struct DataflowNodeYaml {
 }
 
 fn parse_dataflow_yaml(yaml_content: &str) -> Result<(Vec<FlowNode>, Vec<EdgeConnection>), String> {
-    let dataflow: DataflowYaml = serde_yaml::from_str(yaml_content)
-        .map_err(|e| format!("YAML parse error: {}", e))?;
+    let dataflow: DataflowYaml =
+        serde_yaml::from_str(yaml_content).map_err(|e| format!("YAML parse error: {}", e))?;
 
     let mut nodes_data: Vec<(FlowNode, Vec<(String, String, String)>)> = Vec::new();
     let mut edges = Vec::new();
@@ -199,39 +202,36 @@ fn parse_dataflow_yaml(yaml_content: &str) -> Result<(Vec<FlowNode>, Vec<EdgeCon
         let mut input_sources: Vec<(String, String, String)> = Vec::new();
 
         if let Some(inputs) = &node_yaml.inputs {
-            match inputs {
-                serde_yaml::Value::Mapping(map) => {
-                    for (key, value) in map {
-                        if let Some(port_name) = key.as_str() {
-                            input_ports.push(Port::new(port_name));
+            if let serde_yaml::Value::Mapping(map) = inputs {
+                for (key, value) in map {
+                    if let Some(port_name) = key.as_str() {
+                        input_ports.push(Port::new(port_name));
 
-                            let source = match value {
-                                serde_yaml::Value::String(s) => Some(s.clone()),
-                                serde_yaml::Value::Mapping(m) => {
-                                    m.get(&serde_yaml::Value::String("source".to_string()))
-                                        .and_then(|v| v.as_str())
-                                        .map(|s| s.to_string())
-                                }
-                                _ => None,
-                            };
+                        let source = match value {
+                            serde_yaml::Value::String(s) => Some(s.clone()),
+                            serde_yaml::Value::Mapping(m) => m
+                                .get(serde_yaml::Value::String("source".to_string()))
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            _ => None,
+                        };
 
-                            if let Some(src) = source {
-                                if let Some((src_node, src_port)) = src.split_once('/') {
-                                    input_sources.push((
-                                        port_name.to_string(),
-                                        src_node.to_string(),
-                                        src_port.to_string(),
-                                    ));
-                                }
+                        if let Some(src) = source {
+                            if let Some((src_node, src_port)) = src.split_once('/') {
+                                input_sources.push((
+                                    port_name.to_string(),
+                                    src_node.to_string(),
+                                    src_port.to_string(),
+                                ));
                             }
                         }
                     }
                 }
-                _ => {}
             }
         }
 
-        let output_ports: Vec<Port> = node_yaml.outputs
+        let output_ports: Vec<Port> = node_yaml
+            .outputs
             .as_ref()
             .map(|outputs| outputs.iter().map(|s| Port::new(s)).collect())
             .unwrap_or_default();
@@ -241,7 +241,8 @@ fn parse_dataflow_yaml(yaml_content: &str) -> Result<(Vec<FlowNode>, Vec<EdgeCon
         // Temporary position (will be updated by layout algorithm)
         let node = FlowNode::new_dataflow(
             &node_yaml.id,
-            0.0, 0.0,
+            0.0,
+            0.0,
             &node_yaml.id,
             category,
             input_ports,
@@ -270,13 +271,13 @@ fn parse_dataflow_yaml(yaml_content: &str) -> Result<(Vec<FlowNode>, Vec<EdgeCon
     // Define column order for categories (data flow direction: left to right)
     fn category_to_column(cat: NodeCategory) -> usize {
         match cat {
-            NodeCategory::MaaS => 0,        // Source: LLM clients
-            NodeCategory::Bridge => 1,      // Bridge/Switch
-            NodeCategory::Segmenter => 2,   // Text processing
-            NodeCategory::TTS => 3,         // TTS conversion
-            NodeCategory::Controller => 2,  // Controller (middle)
-            NodeCategory::MoFA => 4,        // MoFA nodes (output)
-            NodeCategory::Default => 2,     // Default in middle
+            NodeCategory::MaaS => 0,       // Source: LLM clients
+            NodeCategory::Bridge => 1,     // Bridge/Switch
+            NodeCategory::Segmenter => 2,  // Text processing
+            NodeCategory::TTS => 3,        // TTS conversion
+            NodeCategory::Controller => 2, // Controller (middle)
+            NodeCategory::MoFA => 4,       // MoFA nodes (output)
+            NodeCategory::Default => 2,    // Default in middle
         }
     }
 
@@ -319,9 +320,11 @@ fn parse_dataflow_yaml(yaml_content: &str) -> Result<(Vec<FlowNode>, Vec<EdgeCon
             }
 
             // Calculate barycenter for each node based on connected nodes in previous columns
-            let mut barycenters: Vec<(usize, f64)> = columns[col_idx].iter()
+            let mut barycenters: Vec<(usize, f64)> = columns[col_idx]
+                .iter()
                 .map(|&node| {
-                    let connected_positions: Vec<f64> = incoming[node].iter()
+                    let connected_positions: Vec<f64> = incoming[node]
+                        .iter()
                         .filter(|&&src| category_to_column(nodes_data[src].0.category) < col_idx)
                         .map(|&src| positions[src])
                         .collect();
@@ -350,9 +353,11 @@ fn parse_dataflow_yaml(yaml_content: &str) -> Result<(Vec<FlowNode>, Vec<EdgeCon
                 continue;
             }
 
-            let mut barycenters: Vec<(usize, f64)> = columns[col_idx].iter()
+            let mut barycenters: Vec<(usize, f64)> = columns[col_idx]
+                .iter()
                 .map(|&node| {
-                    let connected_positions: Vec<f64> = outgoing[node].iter()
+                    let connected_positions: Vec<f64> = outgoing[node]
+                        .iter()
                         .filter(|&&dst| category_to_column(nodes_data[dst].0.category) > col_idx)
                         .map(|&dst| positions[dst])
                         .collect();
@@ -376,8 +381,8 @@ fn parse_dataflow_yaml(yaml_content: &str) -> Result<(Vec<FlowNode>, Vec<EdgeCon
     }
 
     // Calculate positions with dynamic row height based on node port count
-    let col_spacing = 300.0;   // Horizontal spacing between columns
-    let base_row_spacing = 120.0;   // Base vertical spacing
+    let col_spacing = 300.0; // Horizontal spacing between columns
+    let base_row_spacing = 120.0; // Base vertical spacing
     let start_x = 50.0;
     let start_y = 50.0;
 
@@ -390,7 +395,8 @@ fn parse_dataflow_yaml(yaml_content: &str) -> Result<(Vec<FlowNode>, Vec<EdgeCon
     }
 
     // Calculate total height for each column
-    let col_heights: Vec<f64> = columns.iter()
+    let col_heights: Vec<f64> = columns
+        .iter()
         .map(|col| {
             col.iter()
                 .map(|&idx| node_height(&nodes_data[idx].0) + 20.0) // 20px gap
@@ -457,13 +463,19 @@ fn categorize_node(id: &str, path: Option<&str>) -> NodeCategory {
 
 #[derive(Live, LiveHook)]
 pub struct App {
-    #[live] ui: WidgetRef,
-    #[rust] loaded_nodes: Vec<FlowNode>,
-    #[rust] loaded_edges: Vec<EdgeConnection>,
-    #[rust] node_enabled: HashMap<String, bool>,
+    #[live]
+    ui: WidgetRef,
+    #[rust]
+    loaded_nodes: Vec<FlowNode>,
+    #[rust]
+    loaded_edges: Vec<EdgeConnection>,
+    #[rust]
+    node_enabled: HashMap<String, bool>,
     // Splitter state
-    #[rust] left_panel_width: f64,
-    #[rust] left_dragging: bool,
+    #[rust]
+    left_panel_width: f64,
+    #[rust]
+    left_dragging: bool,
 }
 
 impl App {
@@ -487,9 +499,12 @@ impl MatchEvent for App {
 
         // Adjust toolbar padding for macOS window controls (traffic lights)
         if let OsType::Macos = cx.os_type() {
-            self.ui.view(id!(toolbar)).apply_over(cx, live! {
-                padding: { left: 80.0, right: 16.0 }
-            });
+            self.ui.view(&[id!(toolbar)]).apply_over(
+                cx,
+                live! {
+                    padding: { left: 80.0, right: 16.0 }
+                },
+            );
         }
 
         // Load dataflow YAML
@@ -502,7 +517,12 @@ impl MatchEvent for App {
             if let Ok(yaml_content) = std::fs::read_to_string(path) {
                 match parse_dataflow_yaml(&yaml_content) {
                     Ok((nodes, edges)) => {
-                        log!("Loaded dataflow from {}: {} nodes, {} edges", path, nodes.len(), edges.len());
+                        log!(
+                            "Loaded dataflow from {}: {} nodes, {} edges",
+                            path,
+                            nodes.len(),
+                            edges.len()
+                        );
 
                         // Initialize node enabled state
                         for node in &nodes {
@@ -614,11 +634,11 @@ impl MatchEvent for App {
         }
 
         // Handle toggle matching ports button
-        if tree_footer.toggle_matching_clicked(actions) {
-            if dataflow_tree.toggle_matching_ports_from_app(cx) {
-                log!("App: Toggled matching ports via button");
-                self.reload_flow_with_enabled_filter(cx);
-            }
+        if tree_footer.toggle_matching_clicked(actions)
+            && dataflow_tree.toggle_matching_ports_from_app(cx)
+        {
+            log!("App: Toggled matching ports via button");
+            self.reload_flow_with_enabled_filter(cx);
         }
 
         // Handle tree node/port enable/disable actions
@@ -628,7 +648,12 @@ impl MatchEvent for App {
             self.reload_flow_with_enabled_filter(cx);
         }
         if let Some((node_id, port_id, enabled)) = dataflow_tree.port_enabled_changed(actions) {
-            log!("App: Port {}/{} enabled changed to {}", node_id, port_id, enabled);
+            log!(
+                "App: Port {}/{} enabled changed to {}",
+                node_id,
+                port_id,
+                enabled
+            );
             // For now, port-level changes also trigger a reload
             // In future, could have finer-grained edge filtering
             self.reload_flow_with_enabled_filter(cx);
@@ -638,7 +663,10 @@ impl MatchEvent for App {
         for action in actions {
             if let FlowCanvasAction::StatusUpdate { nodes, edges } = action.cast() {
                 let enabled_count = self.node_enabled.values().filter(|&&e| e).count();
-                let text = format!("Nodes: {} | Edges: {} | Enabled: {}", nodes, edges, enabled_count);
+                let text = format!(
+                    "Nodes: {} | Edges: {} | Enabled: {}",
+                    nodes, edges, enabled_count
+                );
                 self.ui.label(ids!(count_label)).set_text(cx, &text);
             }
         }
@@ -703,7 +731,8 @@ impl App {
         }
 
         // Step 2: Find nodes that have at least one valid connection
-        let mut connected_node_indices: std::collections::HashSet<usize> = std::collections::HashSet::new();
+        let mut connected_node_indices: std::collections::HashSet<usize> =
+            std::collections::HashSet::new();
         for (from_idx, to_idx, _) in &valid_edges {
             connected_node_indices.insert(*from_idx);
             connected_node_indices.insert(*to_idx);
@@ -726,17 +755,18 @@ impl App {
         }
 
         // Step 4: Collect enabled nodes
-        let enabled_nodes: Vec<FlowNode> = enabled_indices.iter()
+        let enabled_nodes: Vec<FlowNode> = enabled_indices
+            .iter()
             .map(|&idx| self.loaded_nodes[idx].clone())
             .collect();
 
         // Step 5: Remap edges to new indices
-        let enabled_edges: Vec<EdgeConnection> = valid_edges.iter()
+        let enabled_edges: Vec<EdgeConnection> = valid_edges
+            .iter()
             .filter_map(|(from_idx, to_idx, edge)| {
-                if let (Some(&new_from), Some(&new_to)) = (
-                    old_to_new_idx.get(from_idx),
-                    old_to_new_idx.get(to_idx)
-                ) {
+                if let (Some(&new_from), Some(&new_to)) =
+                    (old_to_new_idx.get(from_idx), old_to_new_idx.get(to_idx))
+                {
                     let mut new_edge = edge.clone();
                     new_edge.from_node = new_from;
                     new_edge.to_node = new_to;
@@ -747,8 +777,11 @@ impl App {
             })
             .collect();
 
-        log!("Reloading flow: {} enabled nodes, {} enabled edges",
-             enabled_nodes.len(), enabled_edges.len());
+        log!(
+            "Reloading flow: {} enabled nodes, {} enabled edges",
+            enabled_nodes.len(),
+            enabled_edges.len()
+        );
 
         // Reload the flow canvas with filtered data
         cx.action(FlowCanvasCommand::LoadDataflow {
@@ -761,42 +794,52 @@ impl App {
 
     fn populate_dataflow_tree(&mut self, cx: &mut Cx) {
         // Convert FlowNodes to TreeNodes for the DataflowTree widget
-        let tree_nodes: Vec<TreeNode> = self.loaded_nodes.iter().map(|flow_node| {
-            // Get enabled state
-            let enabled = self.node_enabled.get(&flow_node.id).copied().unwrap_or(true);
+        let tree_nodes: Vec<TreeNode> = self
+            .loaded_nodes
+            .iter()
+            .map(|flow_node| {
+                // Get enabled state
+                let enabled = self
+                    .node_enabled
+                    .get(&flow_node.id)
+                    .copied()
+                    .unwrap_or(true);
 
-            // Build ports list from input and output ports
-            let mut ports = Vec::new();
+                // Build ports list from input and output ports
+                let mut ports = Vec::new();
 
-            for port in &flow_node.input_ports {
-                ports.push(TreePort {
-                    id: port.id.clone(),
-                    label: port.label.clone(),
-                    is_input: true,
-                    enabled: true,
-                });
-            }
+                for port in &flow_node.input_ports {
+                    ports.push(TreePort {
+                        id: port.id.clone(),
+                        label: port.label.clone(),
+                        is_input: true,
+                        enabled: true,
+                    });
+                }
 
-            for port in &flow_node.output_ports {
-                ports.push(TreePort {
-                    id: port.id.clone(),
-                    label: port.label.clone(),
-                    is_input: false,
-                    enabled: true,
-                });
-            }
+                for port in &flow_node.output_ports {
+                    ports.push(TreePort {
+                        id: port.id.clone(),
+                        label: port.label.clone(),
+                        is_input: false,
+                        enabled: true,
+                    });
+                }
 
-            TreeNode {
-                id: flow_node.id.clone(),
-                label: flow_node.title.clone(),
-                category: flow_node.category,
-                enabled,
-                ports,
-            }
-        }).collect();
+                TreeNode {
+                    id: flow_node.id.clone(),
+                    label: flow_node.title.clone(),
+                    category: flow_node.category,
+                    enabled,
+                    ports,
+                }
+            })
+            .collect();
 
         // Set the nodes on the DataflowTree widget
-        self.ui.dataflow_tree(ids!(dataflow_tree)).set_nodes(cx, tree_nodes);
+        self.ui
+            .dataflow_tree(ids!(dataflow_tree))
+            .set_nodes(cx, tree_nodes);
     }
 
     fn add_demo_logs(&mut self, cx: &mut Cx) {
@@ -805,27 +848,41 @@ impl App {
             (LogLevel::Info, "student1", "Initialized MaaS client"),
             (LogLevel::Info, "student2", "Initialized MaaS client"),
             (LogLevel::Info, "tutor", "Initialized MaaS client"),
-            (LogLevel::Debug, "conference-controller", "Policy pattern loaded"),
+            (
+                LogLevel::Debug,
+                "conference-controller",
+                "Policy pattern loaded",
+            ),
             (LogLevel::Info, "bridge-to-student1", "Bridge connected"),
             (LogLevel::Info, "bridge-to-student2", "Bridge connected"),
             (LogLevel::Info, "bridge-to-tutor", "Bridge connected"),
-            (LogLevel::Warn, "multi-text-segmenter", "High buffer threshold"),
+            (
+                LogLevel::Warn,
+                "multi-text-segmenter",
+                "High buffer threshold",
+            ),
             (LogLevel::Info, "primespeech-student1", "TTS engine ready"),
             (LogLevel::Info, "primespeech-student2", "TTS engine ready"),
             (LogLevel::Info, "primespeech-tutor", "TTS engine ready"),
-            (LogLevel::Debug, "mofa-audio-player", "Audio buffer initialized"),
+            (
+                LogLevel::Debug,
+                "mofa-audio-player",
+                "Audio buffer initialized",
+            ),
             (LogLevel::Info, "mofa-prompt-input", "UI widget ready"),
             (LogLevel::Info, "mofa-system-log", "Log aggregator started"),
         ];
 
-        let entries: Vec<LogEntry> = demo_logs.into_iter().enumerate().map(|(i, (level, node_id, message))| {
-            LogEntry {
+        let entries: Vec<LogEntry> = demo_logs
+            .into_iter()
+            .enumerate()
+            .map(|(i, (level, node_id, message))| LogEntry {
                 timestamp: format!("12:34:{:02}", i),
                 level,
                 node_id: node_id.to_string(),
                 message: message.to_string(),
-            }
-        }).collect();
+            })
+            .collect();
 
         self.ui.log_panel(ids!(log_panel)).set_entries(cx, entries);
     }
@@ -845,9 +902,12 @@ impl App {
                     let body_rect = self.ui.view(ids!(main_area)).area().rect(cx);
                     let new_width = (fm.abs.x - body_rect.pos.x).max(Self::MIN_LEFT_WIDTH);
                     self.left_panel_width = new_width;
-                    self.ui.view(ids!(left_panel)).apply_over(cx, live! {
-                        width: (new_width)
-                    });
+                    self.ui.view(ids!(left_panel)).apply_over(
+                        cx,
+                        live! {
+                            width: (new_width)
+                        },
+                    );
                     self.ui.redraw(cx);
                 }
             }

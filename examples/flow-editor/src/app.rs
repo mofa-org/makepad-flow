@@ -91,7 +91,8 @@ live_design! {
 // App
 #[derive(Live, LiveHook)]
 pub struct App {
-    #[live] ui: WidgetRef,
+    #[live]
+    ui: WidgetRef,
 }
 
 impl LiveRegister for App {
@@ -121,12 +122,20 @@ impl MatchEvent for App {
         }
 
         // Handle line style dropdown
-        if let Some(index) = self.ui.drop_down(ids!(line_style_dropdown)).changed(actions) {
+        if let Some(index) = self
+            .ui
+            .drop_down(ids!(line_style_dropdown))
+            .changed(actions)
+        {
             cx.action(FlowCanvasCommand::SetLineStyle(index as f32));
         }
 
         // Handle line width dropdown
-        if let Some(index) = self.ui.drop_down(ids!(line_width_dropdown)).changed(actions) {
+        if let Some(index) = self
+            .ui
+            .drop_down(ids!(line_width_dropdown))
+            .changed(actions)
+        {
             cx.action(FlowCanvasCommand::SetLineWidth((index + 1) as f32));
         }
 

@@ -1,6 +1,8 @@
+use crate::canvas::FIT_VIEW_PADDING;
+use crate::canvas::UNDO_STACK_SIZE;
+use crate::constants::{edge, node, port};
 use makepad_widgets::*;
 use std::collections::HashSet;
-use crate::constants::{node, port, edge, canvas};
 
 /// Canvas constants for zoom bounds and other magic numbers
 mod canvas {
@@ -163,29 +165,40 @@ live_design! {
 #[derive(Live, LiveHook, LiveRegister)]
 #[repr(C)]
 pub struct DrawRoundedRect {
-    #[deref] pub draw_super: DrawQuad,
-    #[live] pub color: Vec4,
-    #[live] pub border_color: Vec4,
-    #[live] pub border_width: f32,
-    #[live] pub radius: f32,
+    #[deref]
+    pub draw_super: DrawQuad,
+    #[live]
+    pub color: Vec4,
+    #[live]
+    pub border_color: Vec4,
+    #[live]
+    pub border_width: f32,
+    #[live]
+    pub radius: f32,
 }
 
 // Rounded TOP corners only (for header)
 #[derive(Live, LiveHook, LiveRegister)]
 #[repr(C)]
 pub struct DrawRoundedTopRect {
-    #[deref] pub draw_super: DrawQuad,
-    #[live] pub color: Vec4,
-    #[live] pub radius: f32,
+    #[deref]
+    pub draw_super: DrawQuad,
+    #[live]
+    pub color: Vec4,
+    #[live]
+    pub radius: f32,
 }
 
 // Rounded BOTTOM corners only (for body)
 #[derive(Live, LiveHook, LiveRegister)]
 #[repr(C)]
 pub struct DrawRoundedBottomRect {
-    #[deref] pub draw_super: DrawQuad,
-    #[live] pub color: Vec4,
-    #[live] pub radius: f32,
+    #[deref]
+    pub draw_super: DrawQuad,
+    #[live]
+    pub color: Vec4,
+    #[live]
+    pub radius: f32,
 }
 
 // Node shape types
@@ -303,7 +316,11 @@ pub struct FlowNode {
 
 impl FlowNode {
     pub fn new(x: f64, y: f64, node_type: NodeType) -> Self {
-        let height = if node_type == NodeType::Camera { node::CAMERA_HEIGHT } else { node::DEFAULT_HEIGHT };
+        let height = if node_type == NodeType::Camera {
+            node::CAMERA_HEIGHT
+        } else {
+            node::DEFAULT_HEIGHT
+        };
         let (input_ports, output_ports) = match node_type {
             NodeType::Camera => (vec![], vec![Port::new("image")]),
             NodeType::Visualizer => (vec![Port::new("input")], vec![]),
@@ -311,7 +328,8 @@ impl FlowNode {
         };
         Self {
             id: format!("node_{}", x as i32 + y as i32),
-            x, y,
+            x,
+            y,
             width: node::WIDTH,
             height,
             node_type,
@@ -324,13 +342,23 @@ impl FlowNode {
         }
     }
 
-    pub fn new_dataflow(id: &str, x: f64, y: f64, title: &str, category: NodeCategory, inputs: Vec<Port>, outputs: Vec<Port>) -> Self {
+    pub fn new_dataflow(
+        id: &str,
+        x: f64,
+        y: f64,
+        title: &str,
+        category: NodeCategory,
+        inputs: Vec<Port>,
+        outputs: Vec<Port>,
+    ) -> Self {
         let port_count = inputs.len().max(outputs.len());
-        let height = node::HEADER_HEIGHT + (port_count as f64 * node::PORT_HEIGHT) + node::BODY_PADDING;
+        let height =
+            node::HEADER_HEIGHT + (port_count as f64 * node::PORT_HEIGHT) + node::BODY_PADDING;
 
         Self {
             id: id.to_string(),
-            x, y,
+            x,
+            y,
             width: node::WIDTH,
             height: height.max(node::MIN_HEIGHT),
             node_type: NodeType::Custom,
@@ -344,26 +372,40 @@ impl FlowNode {
     }
 
     pub fn contains(&self, pos: DVec2) -> bool {
-        pos.x >= self.x && pos.x <= self.x + self.width &&
-        pos.y >= self.y && pos.y <= self.y + self.height
+        pos.x >= self.x
+            && pos.x <= self.x + self.width
+            && pos.y >= self.y
+            && pos.y <= self.y + self.height
     }
 
     // Get position for a specific input port by index
     pub fn input_port_pos(&self, index: usize) -> DVec2 {
-        let y = self.y + node::HEADER_HEIGHT + (index as f64 * node::PORT_HEIGHT) + node::PORT_HEIGHT / 2.0;
+        let y = self.y
+            + node::HEADER_HEIGHT
+            + (index as f64 * node::PORT_HEIGHT)
+            + node::PORT_HEIGHT / 2.0;
         DVec2 { x: self.x, y }
     }
 
     // Get position for a specific output port by index
     pub fn output_port_pos(&self, index: usize) -> DVec2 {
-        let y = self.y + node::HEADER_HEIGHT + (index as f64 * node::PORT_HEIGHT) + node::PORT_HEIGHT / 2.0;
-        DVec2 { x: self.x + self.width, y }
+        let y = self.y
+            + node::HEADER_HEIGHT
+            + (index as f64 * node::PORT_HEIGHT)
+            + node::PORT_HEIGHT / 2.0;
+        DVec2 {
+            x: self.x + self.width,
+            y,
+        }
     }
 
     // Legacy: first output port position
     pub fn output_pos(&self) -> DVec2 {
         if self.output_ports.is_empty() {
-            DVec2 { x: self.x + self.width, y: self.y + node::LEGACY_PORT_Y_OFFSET }
+            DVec2 {
+                x: self.x + self.width,
+                y: self.y + node::LEGACY_PORT_Y_OFFSET,
+            }
         } else {
             self.output_port_pos(0)
         }
@@ -372,7 +414,10 @@ impl FlowNode {
     // Legacy: first input port position
     pub fn input_pos(&self) -> DVec2 {
         if self.input_ports.is_empty() {
-            DVec2 { x: self.x, y: self.y + node::LEGACY_PORT_Y_OFFSET }
+            DVec2 {
+                x: self.x,
+                y: self.y + node::LEGACY_PORT_Y_OFFSET,
+            }
         } else {
             self.input_port_pos(0)
         }
@@ -380,12 +425,30 @@ impl FlowNode {
 
     pub fn output_port_rect(&self) -> Rect {
         let pos = self.output_pos();
-        Rect { pos: DVec2 { x: pos.x - port::HIT_OFFSET_X, y: pos.y - port::HIT_OFFSET_Y }, size: DVec2 { x: port::HIT_SIZE, y: port::HIT_SIZE } }
+        Rect {
+            pos: DVec2 {
+                x: pos.x - port::HIT_OFFSET_X,
+                y: pos.y - port::HIT_OFFSET_Y,
+            },
+            size: DVec2 {
+                x: port::HIT_SIZE,
+                y: port::HIT_SIZE,
+            },
+        }
     }
 
     pub fn input_port_rect(&self) -> Rect {
         let pos = self.input_pos();
-        Rect { pos: DVec2 { x: pos.x - port::HIT_OFFSET_Y, y: pos.y - port::HIT_OFFSET_Y }, size: DVec2 { x: port::HIT_SIZE, y: port::HIT_SIZE } }
+        Rect {
+            pos: DVec2 {
+                x: pos.x - port::HIT_OFFSET_Y,
+                y: pos.y - port::HIT_OFFSET_Y,
+            },
+            size: DVec2 {
+                x: port::HIT_SIZE,
+                y: port::HIT_SIZE,
+            },
+        }
     }
 
     // Find port index by id
@@ -413,12 +476,12 @@ pub enum EdgeMarker {
 pub struct EdgeConnection {
     pub from_node: usize,
     pub to_node: usize,
-    pub from_port: String,  // output port id
-    pub to_port: String,    // input port id
-    pub style: f32,         // 0=solid, 1=dashed, 2=dotted
-    pub width: f32,         // line width
-    pub animated: bool,     // animation on/off
-    pub label: String,      // edge label text
+    pub from_port: String,      // output port id
+    pub to_port: String,        // input port id
+    pub style: f32,             // 0=solid, 1=dashed, 2=dotted
+    pub width: f32,             // line width
+    pub animated: bool,         // animation on/off
+    pub label: String,          // edge label text
     pub marker_end: EdgeMarker, // marker at end
 }
 
@@ -429,15 +492,20 @@ impl EdgeConnection {
             to_node,
             from_port: String::new(),
             to_port: String::new(),
-            style: 0.0,      // solid by default
+            style: 0.0, // solid by default
             width: edge::WIDTH_F32,
-            animated: true,  // animated by default
+            animated: true, // animated by default
             label: String::new(),
             marker_end: EdgeMarker::Arrow, // arrow by default
         }
     }
 
-    pub fn new_with_ports(from_node: usize, from_port: &str, to_node: usize, to_port: &str) -> Self {
+    pub fn new_with_ports(
+        from_node: usize,
+        from_port: &str,
+        to_node: usize,
+        to_port: &str,
+    ) -> Self {
         Self {
             from_node,
             to_node,
@@ -445,7 +513,7 @@ impl EdgeConnection {
             to_port: to_port.to_string(),
             style: 0.0,
             width: edge::WIDTH_F32,
-            animated: false,  // dataflow edges not animated by default
+            animated: false, // dataflow edges not animated by default
             label: String::new(),
             marker_end: EdgeMarker::Arrow,
         }
@@ -472,8 +540,14 @@ impl BezierCurve {
     /// Generate points along bezier curve with horizontal tangent control points
     pub fn points_with_horizontal_tangents(from: DVec2, to: DVec2, segments: usize) -> Vec<DVec2> {
         let dx = (to.x - from.x).abs() * 0.5;
-        let c0 = DVec2 { x: from.x + dx, y: from.y };
-        let c1 = DVec2 { x: to.x - dx, y: to.y };
+        let c0 = DVec2 {
+            x: from.x + dx,
+            y: from.y,
+        };
+        let c1 = DVec2 {
+            x: to.x - dx,
+            y: to.y,
+        };
 
         let mut points = Vec::with_capacity(segments + 1);
         for i in 0..=segments {
@@ -488,11 +562,25 @@ impl BezierCurve {
 #[derive(Clone)]
 pub enum DragState {
     None,
-    DraggingNode { index: usize, offset: DVec2 },
-    DraggingNodes { offsets: Vec<(usize, DVec2)> }, // Multi-node drag
-    Panning { start: DVec2 },
-    CreatingEdge { from_node: usize, is_output: bool, cursor_pos: DVec2 },
-    SelectionBox { start: DVec2, current: DVec2 }, // Drag selection box
+    DraggingNode {
+        index: usize,
+        offset: DVec2,
+    },
+    DraggingNodes {
+        offsets: Vec<(usize, DVec2)>,
+    }, // Multi-node drag
+    Panning {
+        start: DVec2,
+    },
+    CreatingEdge {
+        from_node: usize,
+        is_output: bool,
+        cursor_pos: DVec2,
+    },
+    SelectionBox {
+        start: DVec2,
+        current: DVec2,
+    }, // Drag selection box
 }
 
 // History entry for undo/redo
@@ -512,49 +600,84 @@ pub enum FlowCanvasCommand {
     Clear,
     SetLineStyle(f32),
     SetLineWidth(f32),
-    LoadDataflow { nodes: Vec<FlowNode>, edges: Vec<EdgeConnection> },
+    LoadDataflow {
+        nodes: Vec<FlowNode>,
+        edges: Vec<EdgeConnection>,
+    },
 }
 
 // Flow canvas widget
 #[derive(Live, LiveHook, Widget)]
 pub struct FlowCanvas {
-    #[deref] view: View,
-    #[live] draw_edge: DrawColor,
-    #[live] draw_node_bg: DrawColor,
-    #[live] draw_rounded_rect: DrawRoundedRect,
-    #[live] draw_rounded_top_rect: DrawRoundedTopRect,
-    #[live] draw_rounded_bottom_rect: DrawRoundedBottomRect,
-    #[live] draw_text: DrawText,
+    #[deref]
+    view: View,
+    #[live]
+    draw_edge: DrawColor,
+    #[live]
+    draw_node_bg: DrawColor,
+    #[live]
+    draw_rounded_rect: DrawRoundedRect,
+    #[live]
+    draw_rounded_top_rect: DrawRoundedTopRect,
+    #[live]
+    draw_rounded_bottom_rect: DrawRoundedBottomRect,
+    #[live]
+    draw_text: DrawText,
 
     // Configurable visual properties (can be set via DSL)
-    #[live(2.0)] pub line_width: f32,
-    #[live(0.0)] pub line_style: f32,
-    #[live(1.0)] pub default_zoom: f64,
-    #[live] pub selection_color: Vec4,
-    #[live] pub edge_color: Vec4,
-    #[live] pub edge_selected_color: Vec4,
-    #[live(true)] pub animate_edges: bool,
+    #[live(2.0)]
+    pub line_width: f32,
+    #[live(0.0)]
+    pub line_style: f32,
+    #[live(1.0)]
+    pub default_zoom: f64,
+    #[live]
+    pub selection_color: Vec4,
+    #[live]
+    pub edge_color: Vec4,
+    #[live]
+    pub edge_selected_color: Vec4,
+    #[live(true)]
+    pub animate_edges: bool,
 
-    #[rust] nodes: Vec<FlowNode>,
-    #[rust] edges: Vec<EdgeConnection>,
-    #[rust] drag_state: DragState,
-    #[rust] selected_nodes: HashSet<usize>,  // Multi-selection support
-    #[rust] selected_edges: HashSet<usize>,  // Multi-selection support
-    #[rust] pan_offset: DVec2,
-    #[rust] zoom: f64,
-    #[rust] initialized: bool,
-    #[rust] next_node_id: usize,
-    #[rust] animation_timer: Timer,
-    #[rust] animation_phase: f64, // 0.0 to 1.0, cycles continuously
-    #[rust] context_menu_node: Option<usize>, // Which node is the context menu for
-    #[rust] context_menu_edge: Option<usize>, // Which edge is the context menu for
-    #[rust] context_menu_pos: DVec2, // Position to show context menu
-    #[rust] undo_stack: Vec<HistoryEntry>,   // Undo history
-    #[rust] redo_stack: Vec<HistoryEntry>,   // Redo history
+    #[rust]
+    nodes: Vec<FlowNode>,
+    #[rust]
+    edges: Vec<EdgeConnection>,
+    #[rust]
+    drag_state: DragState,
+    #[rust]
+    selected_nodes: HashSet<usize>, // Multi-selection support
+    #[rust]
+    selected_edges: HashSet<usize>, // Multi-selection support
+    #[rust]
+    pan_offset: DVec2,
+    #[rust]
+    zoom: f64,
+    #[rust]
+    initialized: bool,
+    #[rust]
+    next_node_id: usize,
+    #[rust]
+    animation_timer: Timer,
+    #[rust]
+    animation_phase: f64, // 0.0 to 1.0, cycles continuously
+    #[rust]
+    context_menu_node: Option<usize>, // Which node is the context menu for
+    #[rust]
+    context_menu_edge: Option<usize>, // Which edge is the context menu for
+    #[rust]
+    context_menu_pos: DVec2, // Position to show context menu
+    #[rust]
+    undo_stack: Vec<HistoryEntry>, // Undo history
+    #[rust]
+    redo_stack: Vec<HistoryEntry>, // Redo history
 }
 
 impl Default for DragState {
-    fn default() -> Self { DragState::None }
+    fn default() -> Self {
+        DragState::None
+    }
 }
 
 // Actions for the flow canvas
@@ -577,10 +700,14 @@ impl Widget for FlowCanvas {
         if !self.initialized {
             self.initialize(cx);
             // Send initial status
-            cx.widget_action(uid, &scope.path, FlowCanvasAction::StatusUpdate {
-                nodes: self.nodes.len(),
-                edges: self.edges.len(),
-            });
+            cx.widget_action(
+                uid,
+                &scope.path,
+                FlowCanvasAction::StatusUpdate {
+                    nodes: self.nodes.len(),
+                    edges: self.edges.len(),
+                },
+            );
         }
 
         // Handle animation timer
@@ -601,32 +728,53 @@ impl Widget for FlowCanvas {
                 // Delete key - delete selected
                 if ke.key_code == KeyCode::Delete || ke.key_code == KeyCode::Backspace {
                     self.delete_selected(cx, uid, scope);
-                    cx.widget_action(uid, &scope.path, FlowCanvasAction::StatusUpdate {
-                        nodes: self.nodes.len(),
-                        edges: self.edges.len(),
-                    });
+                    cx.widget_action(
+                        uid,
+                        &scope.path,
+                        FlowCanvasAction::StatusUpdate {
+                            nodes: self.nodes.len(),
+                            edges: self.edges.len(),
+                        },
+                    );
                 }
                 // Ctrl+A or Cmd+A - select all
-                else if ke.key_code == KeyCode::KeyA && (ke.modifiers.control || ke.modifiers.logo) {
+                else if ke.key_code == KeyCode::KeyA
+                    && (ke.modifiers.control || ke.modifiers.logo)
+                {
                     self.select_all(cx);
                     cx.widget_action(uid, &scope.path, FlowCanvasAction::SelectionChanged);
                 }
                 // Ctrl+Z or Cmd+Z - undo
-                else if ke.key_code == KeyCode::KeyZ && (ke.modifiers.control || ke.modifiers.logo) && !ke.modifiers.shift {
+                else if ke.key_code == KeyCode::KeyZ
+                    && (ke.modifiers.control || ke.modifiers.logo)
+                    && !ke.modifiers.shift
+                {
                     self.undo(cx);
-                    cx.widget_action(uid, &scope.path, FlowCanvasAction::StatusUpdate {
-                        nodes: self.nodes.len(),
-                        edges: self.edges.len(),
-                    });
+                    cx.widget_action(
+                        uid,
+                        &scope.path,
+                        FlowCanvasAction::StatusUpdate {
+                            nodes: self.nodes.len(),
+                            edges: self.edges.len(),
+                        },
+                    );
                 }
                 // Ctrl+Y/Cmd+Y or Ctrl+Shift+Z/Cmd+Shift+Z - redo
-                else if (ke.key_code == KeyCode::KeyY && (ke.modifiers.control || ke.modifiers.logo)) ||
-                        (ke.key_code == KeyCode::KeyZ && (ke.modifiers.control || ke.modifiers.logo) && ke.modifiers.shift) {
+                else if (ke.key_code == KeyCode::KeyY
+                    && (ke.modifiers.control || ke.modifiers.logo))
+                    || (ke.key_code == KeyCode::KeyZ
+                        && (ke.modifiers.control || ke.modifiers.logo)
+                        && ke.modifiers.shift)
+                {
                     self.redo(cx);
-                    cx.widget_action(uid, &scope.path, FlowCanvasAction::StatusUpdate {
-                        nodes: self.nodes.len(),
-                        edges: self.edges.len(),
-                    });
+                    cx.widget_action(
+                        uid,
+                        &scope.path,
+                        FlowCanvasAction::StatusUpdate {
+                            nodes: self.nodes.len(),
+                            edges: self.edges.len(),
+                        },
+                    );
                 }
                 // Escape - deselect all
                 else if ke.key_code == KeyCode::Escape {
@@ -643,7 +791,11 @@ impl Widget for FlowCanvas {
         }
 
         // Handle mouse events with capture
-        match event.hits_with_options(cx, self.view.area(), HitOptions::new().with_capture_overload(true)) {
+        match event.hits_with_options(
+            cx,
+            self.view.area(),
+            HitOptions::new().with_capture_overload(true),
+        ) {
             Hit::FingerDown(fe) => {
                 let local = self.screen_to_canvas(fe.abs, area_rect);
 
@@ -656,14 +808,17 @@ impl Widget for FlowCanvas {
                         let padding = 4.0;
 
                         // Check if multi-selection mode
-                        let is_multi = self.selected_nodes.contains(&node_idx) && self.selected_nodes.len() > 1;
+                        let is_multi = self.selected_nodes.contains(&node_idx)
+                            && self.selected_nodes.len() > 1;
                         let header_offset = if is_multi { item_height } else { 0.0 };
 
                         // Check if click is within menu bounds
-                        let in_menu_x = fe.abs.x >= menu_pos.x && fe.abs.x <= menu_pos.x + menu_width;
+                        let in_menu_x =
+                            fe.abs.x >= menu_pos.x && fe.abs.x <= menu_pos.x + menu_width;
                         let num_items = if is_multi { 12.0 } else { 11.0 };
                         let menu_height = item_height * num_items + padding * 2.0;
-                        let in_menu_y = fe.abs.y >= menu_pos.y && fe.abs.y <= menu_pos.y + menu_height;
+                        let in_menu_y =
+                            fe.abs.y >= menu_pos.y && fe.abs.y <= menu_pos.y + menu_height;
 
                         if in_menu_x && in_menu_y {
                             // Calculate which item was clicked
@@ -689,7 +844,9 @@ impl Widget for FlowCanvas {
                                     _ => NodeShape::Diamond,
                                 };
                                 // Apply to all selected nodes if multi-selection
-                                if self.selected_nodes.contains(&node_idx) && self.selected_nodes.len() > 1 {
+                                if self.selected_nodes.contains(&node_idx)
+                                    && self.selected_nodes.len() > 1
+                                {
                                     for &idx in &self.selected_nodes.clone() {
                                         self.nodes[idx].shape = new_shape;
                                     }
@@ -704,7 +861,9 @@ impl Widget for FlowCanvas {
                                 let border_idx = ((rel_y - border_start) / item_height) as usize;
                                 let new_border = (border_idx + 1).min(4) as f32;
                                 // Apply to all selected nodes if multi-selection
-                                if self.selected_nodes.contains(&node_idx) && self.selected_nodes.len() > 1 {
+                                if self.selected_nodes.contains(&node_idx)
+                                    && self.selected_nodes.len() > 1
+                                {
                                     for &idx in &self.selected_nodes.clone() {
                                         self.nodes[idx].border_width = new_border;
                                     }
@@ -736,8 +895,10 @@ impl Widget for FlowCanvas {
                         let padding = 8.0;
                         let menu_height = 300.0;
 
-                        let in_menu_x = fe.abs.x >= menu_pos.x && fe.abs.x <= menu_pos.x + menu_width;
-                        let in_menu_y = fe.abs.y >= menu_pos.y && fe.abs.y <= menu_pos.y + menu_height;
+                        let in_menu_x =
+                            fe.abs.x >= menu_pos.x && fe.abs.x <= menu_pos.x + menu_width;
+                        let in_menu_y =
+                            fe.abs.y >= menu_pos.y && fe.abs.y <= menu_pos.y + menu_height;
 
                         if in_menu_x && in_menu_y {
                             let rel_y = fe.abs.y - menu_pos.y - padding;
@@ -805,7 +966,7 @@ impl Widget for FlowCanvas {
                             self.drag_state = DragState::CreatingEdge {
                                 from_node: i,
                                 is_output: true,
-                                cursor_pos: local
+                                cursor_pos: local,
                             };
                             self.view.redraw(cx);
                             return;
@@ -818,7 +979,7 @@ impl Widget for FlowCanvas {
                             self.drag_state = DragState::CreatingEdge {
                                 from_node: i,
                                 is_output: false,
-                                cursor_pos: local
+                                cursor_pos: local,
                             };
                             self.view.redraw(cx);
                             return;
@@ -862,17 +1023,28 @@ impl Widget for FlowCanvas {
 
                         // Setup drag - handle multi-node drag if multiple selected
                         if self.selected_nodes.len() > 1 && self.selected_nodes.contains(&i) {
-                            let offsets: Vec<(usize, DVec2)> = self.selected_nodes.iter()
+                            let offsets: Vec<(usize, DVec2)> = self
+                                .selected_nodes
+                                .iter()
                                 .map(|&idx| {
                                     let n = &self.nodes[idx];
-                                    (idx, DVec2 { x: local.x - n.x, y: local.y - n.y })
+                                    (
+                                        idx,
+                                        DVec2 {
+                                            x: local.x - n.x,
+                                            y: local.y - n.y,
+                                        },
+                                    )
                                 })
                                 .collect();
                             self.drag_state = DragState::DraggingNodes { offsets };
                         } else {
                             self.drag_state = DragState::DraggingNode {
                                 index: i,
-                                offset: DVec2 { x: local.x - node.x, y: local.y - node.y },
+                                offset: DVec2 {
+                                    x: local.x - node.x,
+                                    y: local.y - node.y,
+                                },
                             };
                         }
                         cx.set_cursor(MouseCursor::Hand);
@@ -915,7 +1087,10 @@ impl Widget for FlowCanvas {
                 // Clicked on empty space - start selection box or deselect
                 if !fe.modifiers.shift {
                     // Start drag selection box
-                    self.drag_state = DragState::SelectionBox { start: local, current: local };
+                    self.drag_state = DragState::SelectionBox {
+                        start: local,
+                        current: local,
+                    };
                     self.selected_nodes.clear();
                     self.selected_edges.clear();
                 }
@@ -955,7 +1130,11 @@ impl Widget for FlowCanvas {
                         self.drag_state = DragState::Panning { start: fe.abs };
                         self.view.redraw(cx);
                     }
-                    DragState::CreatingEdge { from_node, is_output, .. } => {
+                    DragState::CreatingEdge {
+                        from_node,
+                        is_output,
+                        ..
+                    } => {
                         self.drag_state = DragState::CreatingEdge {
                             from_node: *from_node,
                             is_output: *is_output,
@@ -966,7 +1145,10 @@ impl Widget for FlowCanvas {
                     DragState::SelectionBox { start, .. } => {
                         // Update selection box and select nodes within
                         let start_pos = *start;
-                        self.drag_state = DragState::SelectionBox { start: start_pos, current: local };
+                        self.drag_state = DragState::SelectionBox {
+                            start: start_pos,
+                            current: local,
+                        };
 
                         // Find nodes within selection box
                         let min_x = start_pos.x.min(local.x);
@@ -978,8 +1160,11 @@ impl Widget for FlowCanvas {
                         for (i, node) in self.nodes.iter().enumerate() {
                             let node_center_x = node.x + node.width / 2.0;
                             let node_center_y = node.y + node.height / 2.0;
-                            if node_center_x >= min_x && node_center_x <= max_x &&
-                               node_center_y >= min_y && node_center_y <= max_y {
+                            if node_center_x >= min_x
+                                && node_center_x <= max_x
+                                && node_center_y >= min_y
+                                && node_center_y <= max_y
+                            {
                                 self.selected_nodes.insert(i);
                             }
                         }
@@ -993,25 +1178,37 @@ impl Widget for FlowCanvas {
                 let local = self.screen_to_canvas(fe.abs, area_rect);
 
                 // Handle edge creation completion
-                if let DragState::CreatingEdge { from_node, is_output, .. } = &self.drag_state {
+                if let DragState::CreatingEdge {
+                    from_node,
+                    is_output,
+                    ..
+                } = &self.drag_state
+                {
                     let from_idx = *from_node;
                     let from_is_output = *is_output;
 
                     // Find target port
                     for (i, node) in self.nodes.iter().enumerate() {
-                        if i == from_idx { continue; }
+                        if i == from_idx {
+                            continue;
+                        }
 
                         // If dragging from output, look for input ports
                         if from_is_output && node.node_type.has_input() {
                             let port_rect = node.input_port_rect();
                             if port_rect.contains(local) {
                                 // Check if edge already exists
-                                let exists = self.edges.iter().any(|e|
-                                    e.from_node == from_idx && e.to_node == i
-                                );
+                                let exists = self
+                                    .edges
+                                    .iter()
+                                    .any(|e| e.from_node == from_idx && e.to_node == i);
                                 if !exists {
                                     self.edges.push(EdgeConnection::new(from_idx, i));
-                                    cx.widget_action(uid, &scope.path, FlowCanvasAction::EdgeCreated);
+                                    cx.widget_action(
+                                        uid,
+                                        &scope.path,
+                                        FlowCanvasAction::EdgeCreated,
+                                    );
                                 }
                                 break;
                             }
@@ -1020,12 +1217,17 @@ impl Widget for FlowCanvas {
                         if !from_is_output && node.node_type.has_output() {
                             let port_rect = node.output_port_rect();
                             if port_rect.contains(local) {
-                                let exists = self.edges.iter().any(|e|
-                                    e.from_node == i && e.to_node == from_idx
-                                );
+                                let exists = self
+                                    .edges
+                                    .iter()
+                                    .any(|e| e.from_node == i && e.to_node == from_idx);
                                 if !exists {
                                     self.edges.push(EdgeConnection::new(i, from_idx));
-                                    cx.widget_action(uid, &scope.path, FlowCanvasAction::EdgeCreated);
+                                    cx.widget_action(
+                                        uid,
+                                        &scope.path,
+                                        FlowCanvasAction::EdgeCreated,
+                                    );
                                 }
                                 break;
                             }
@@ -1067,27 +1269,39 @@ impl Widget for FlowCanvas {
                     match action.cast() {
                         FlowCanvasCommand::AddNode => {
                             self.add_node(cx, NodeType::Custom);
-                            cx.widget_action(uid, &scope.path, FlowCanvasAction::StatusUpdate {
-                                nodes: self.nodes.len(),
-                                edges: self.edges.len(),
-                            });
+                            cx.widget_action(
+                                uid,
+                                &scope.path,
+                                FlowCanvasAction::StatusUpdate {
+                                    nodes: self.nodes.len(),
+                                    edges: self.edges.len(),
+                                },
+                            );
                         }
                         FlowCanvasCommand::Delete => {
                             self.delete_selected(cx, uid, scope);
-                            cx.widget_action(uid, &scope.path, FlowCanvasAction::StatusUpdate {
-                                nodes: self.nodes.len(),
-                                edges: self.edges.len(),
-                            });
+                            cx.widget_action(
+                                uid,
+                                &scope.path,
+                                FlowCanvasAction::StatusUpdate {
+                                    nodes: self.nodes.len(),
+                                    edges: self.edges.len(),
+                                },
+                            );
                         }
                         FlowCanvasCommand::FitView => {
                             self.fit_view(cx);
                         }
                         FlowCanvasCommand::Clear => {
                             self.clear(cx);
-                            cx.widget_action(uid, &scope.path, FlowCanvasAction::StatusUpdate {
-                                nodes: self.nodes.len(),
-                                edges: self.edges.len(),
-                            });
+                            cx.widget_action(
+                                uid,
+                                &scope.path,
+                                FlowCanvasAction::StatusUpdate {
+                                    nodes: self.nodes.len(),
+                                    edges: self.edges.len(),
+                                },
+                            );
                         }
                         FlowCanvasCommand::SetLineStyle(style) => {
                             self.line_style = style;
@@ -1123,12 +1337,19 @@ impl Widget for FlowCanvas {
         cx.begin_turtle(walk, Layout::flow_overlay());
 
         // Draw background
-        let _ = self.view.draw_walk(cx, scope, walk.with_abs_pos(DVec2::default()));
+        let _ = self
+            .view
+            .draw_walk(cx, scope, walk.with_abs_pos(DVec2::default()));
 
         // Collect edge data first to avoid borrow issues - use per-edge properties
         let anim_phase = self.animation_phase;
-        let edges_to_draw: Vec<_> = self.edges.iter().enumerate()
-            .filter(|(_, edge)| edge.from_node < self.nodes.len() && edge.to_node < self.nodes.len())
+        let edges_to_draw: Vec<_> = self
+            .edges
+            .iter()
+            .enumerate()
+            .filter(|(_, edge)| {
+                edge.from_node < self.nodes.len() && edge.to_node < self.nodes.len()
+            })
             .map(|(i, edge)| {
                 let from_node = &self.nodes[edge.from_node];
                 let to_node = &self.nodes[edge.to_node];
@@ -1163,14 +1384,29 @@ impl Widget for FlowCanvas {
                 let edge_animated = edge.animated;
                 let marker = edge.marker_end;
                 let label = edge.label.clone();
-                (from, to, selected, edge_style, edge_width, edge_animated, marker, label)
+                (
+                    from,
+                    to,
+                    selected,
+                    edge_style,
+                    edge_width,
+                    edge_animated,
+                    marker,
+                    label,
+                )
             })
             .collect();
 
         // Draw edges using DrawColor for line segments
-        for (from, to, selected, edge_style, edge_width, edge_animated, marker, label) in edges_to_draw {
+        for (from, to, selected, edge_style, edge_width, edge_animated, marker, label) in
+            edges_to_draw
+        {
             // Use negative value for anim_phase if animation is off (global or per-edge)
-            let phase = if self.animate_edges && edge_animated { anim_phase } else { -1.0 };
+            let phase = if self.animate_edges && edge_animated {
+                anim_phase
+            } else {
+                -1.0
+            };
             self.draw_bezier_edge(cx, from, to, selected, edge_width, edge_style, phase);
 
             // Draw edge marker (arrow) at endpoint
@@ -1180,25 +1416,57 @@ impl Widget for FlowCanvas {
 
             // Draw edge label at midpoint (light theme)
             if !label.is_empty() {
-                let mid = DVec2 { x: (from.x + to.x) / 2.0, y: (from.y + to.y) / 2.0 };
+                let mid = DVec2 {
+                    x: (from.x + to.x) / 2.0,
+                    y: (from.y + to.y) / 2.0,
+                };
                 self.draw_text.text_style.font_size = 9.0;
-                self.draw_text.color = if selected { vec4(0.2, 0.4, 0.7, 1.0) } else { vec4(0.4, 0.4, 0.45, 1.0) };
+                self.draw_text.color = if selected {
+                    vec4(0.2, 0.4, 0.7, 1.0)
+                } else {
+                    vec4(0.4, 0.4, 0.45, 1.0)
+                };
                 // Draw label background
                 let label_width = label.len() as f64 * 6.0;
                 self.draw_node_bg.color = vec4(1.0, 1.0, 1.0, 0.95); // White background
-                self.draw_node_bg.draw_abs(cx, Rect {
-                    pos: DVec2 { x: mid.x - label_width / 2.0 - 4.0, y: mid.y - 8.0 },
-                    size: DVec2 { x: label_width + 8.0, y: 16.0 },
-                });
-                self.draw_text.draw_abs(cx, DVec2 { x: mid.x - label_width / 2.0, y: mid.y - 6.0 }, &label);
+                self.draw_node_bg.draw_abs(
+                    cx,
+                    Rect {
+                        pos: DVec2 {
+                            x: mid.x - label_width / 2.0 - 4.0,
+                            y: mid.y - 8.0,
+                        },
+                        size: DVec2 {
+                            x: label_width + 8.0,
+                            y: 16.0,
+                        },
+                    },
+                );
+                self.draw_text.draw_abs(
+                    cx,
+                    DVec2 {
+                        x: mid.x - label_width / 2.0,
+                        y: mid.y - 6.0,
+                    },
+                    &label,
+                );
             }
         }
 
         // Draw edge being created
-        let creating_edge_data = if let DragState::CreatingEdge { from_node, is_output, cursor_pos } = &self.drag_state {
+        let creating_edge_data = if let DragState::CreatingEdge {
+            from_node,
+            is_output,
+            cursor_pos,
+        } = &self.drag_state
+        {
             if *from_node < self.nodes.len() {
                 let node = &self.nodes[*from_node];
-                let port_pos = if *is_output { node.output_pos() } else { node.input_pos() };
+                let port_pos = if *is_output {
+                    node.output_pos()
+                } else {
+                    node.input_pos()
+                };
                 let from = self.canvas_to_screen_pt(port_pos);
                 let to = self.canvas_to_screen_pt(*cursor_pos);
                 Some((from, to))
@@ -1214,7 +1482,11 @@ impl Widget for FlowCanvas {
         }
 
         // Draw nodes - clone to avoid borrow issues, use each node's own shape and border
-        let nodes_to_draw: Vec<_> = self.nodes.iter().cloned().enumerate()
+        let nodes_to_draw: Vec<_> = self
+            .nodes
+            .iter()
+            .cloned()
+            .enumerate()
             .map(|(i, node)| (node, self.selected_nodes.contains(&i)))
             .collect();
         for (node, is_selected) in nodes_to_draw {
@@ -1234,22 +1506,70 @@ impl Widget for FlowCanvas {
 
             // Draw selection box fill
             self.draw_node_bg.color = vec4(0.3, 0.5, 0.8, 0.15);
-            self.draw_node_bg.draw_abs(cx, Rect {
-                pos: DVec2 { x: min_x, y: min_y },
-                size: DVec2 { x: max_x - min_x, y: max_y - min_y },
-            });
+            self.draw_node_bg.draw_abs(
+                cx,
+                Rect {
+                    pos: DVec2 { x: min_x, y: min_y },
+                    size: DVec2 {
+                        x: max_x - min_x,
+                        y: max_y - min_y,
+                    },
+                },
+            );
 
             // Draw selection box border
             self.draw_node_bg.color = vec4(0.4, 0.6, 1.0, 0.6);
             let border = 1.0;
             // Top
-            self.draw_node_bg.draw_abs(cx, Rect { pos: DVec2 { x: min_x, y: min_y }, size: DVec2 { x: max_x - min_x, y: border } });
+            self.draw_node_bg.draw_abs(
+                cx,
+                Rect {
+                    pos: DVec2 { x: min_x, y: min_y },
+                    size: DVec2 {
+                        x: max_x - min_x,
+                        y: border,
+                    },
+                },
+            );
             // Bottom
-            self.draw_node_bg.draw_abs(cx, Rect { pos: DVec2 { x: min_x, y: max_y - border }, size: DVec2 { x: max_x - min_x, y: border } });
+            self.draw_node_bg.draw_abs(
+                cx,
+                Rect {
+                    pos: DVec2 {
+                        x: min_x,
+                        y: max_y - border,
+                    },
+                    size: DVec2 {
+                        x: max_x - min_x,
+                        y: border,
+                    },
+                },
+            );
             // Left
-            self.draw_node_bg.draw_abs(cx, Rect { pos: DVec2 { x: min_x, y: min_y }, size: DVec2 { x: border, y: max_y - min_y } });
+            self.draw_node_bg.draw_abs(
+                cx,
+                Rect {
+                    pos: DVec2 { x: min_x, y: min_y },
+                    size: DVec2 {
+                        x: border,
+                        y: max_y - min_y,
+                    },
+                },
+            );
             // Right
-            self.draw_node_bg.draw_abs(cx, Rect { pos: DVec2 { x: max_x - border, y: min_y }, size: DVec2 { x: border, y: max_y - min_y } });
+            self.draw_node_bg.draw_abs(
+                cx,
+                Rect {
+                    pos: DVec2 {
+                        x: max_x - border,
+                        y: min_y,
+                    },
+                    size: DVec2 {
+                        x: border,
+                        y: max_y - min_y,
+                    },
+                },
+            );
         }
 
         // Draw node context menu if open
@@ -1274,7 +1594,16 @@ impl Widget for FlowCanvas {
 impl FlowCanvas {
     /// Draw a bezier curve edge using line segment quads with optional animated flow
     /// anim_phase < 0 means animation is disabled
-    fn draw_bezier_edge(&mut self, cx: &mut Cx2d, from: DVec2, to: DVec2, selected: bool, thickness: f64, style: f32, anim_phase: f64) {
+    fn draw_bezier_edge(
+        &mut self,
+        cx: &mut Cx2d,
+        from: DVec2,
+        to: DVec2,
+        selected: bool,
+        thickness: f64,
+        style: f32,
+        anim_phase: f64,
+    ) {
         // Get bezier curve points - more segments for smoother curves
         let points = BezierCurve::points_with_horizontal_tangents(from, to, edge::BEZIER_SEGMENTS);
 
@@ -1298,13 +1627,18 @@ impl FlowCanvas {
                 // Solid line
                 if animated {
                     // With animation: dim base line + bright flow particles
-                    let edge_col = if selected { self.edge_selected_color } else { self.edge_color };
-                    let base_color = vec4(edge_col.x * 0.6, edge_col.y * 0.6, edge_col.z * 0.6, 0.5);
+                    let edge_col = if selected {
+                        self.edge_selected_color
+                    } else {
+                        self.edge_color
+                    };
+                    let base_color =
+                        vec4(edge_col.x * 0.6, edge_col.y * 0.6, edge_col.z * 0.6, 0.5);
                     let flow_color = vec4(
                         (edge_col.x * 1.2).min(1.0),
                         (edge_col.y * 1.2).min(1.0),
                         (edge_col.z * 1.2).min(1.0),
-                        1.0
+                        1.0,
                     );
 
                     // Draw base line
@@ -1322,10 +1656,19 @@ impl FlowCanvas {
                                 let t = s as f64 / steps as f64;
                                 let ix = prev_pt.x + dx * t;
                                 let iy = prev_pt.y + dy * t;
-                                self.draw_edge.draw_abs(cx, Rect {
-                                    pos: DVec2 { x: ix - half_thick, y: iy - half_thick },
-                                    size: DVec2 { x: thickness, y: thickness },
-                                });
+                                self.draw_edge.draw_abs(
+                                    cx,
+                                    Rect {
+                                        pos: DVec2 {
+                                            x: ix - half_thick,
+                                            y: iy - half_thick,
+                                        },
+                                        size: DVec2 {
+                                            x: thickness,
+                                            y: thickness,
+                                        },
+                                    },
+                                );
                             }
                         }
                     }
@@ -1347,7 +1690,9 @@ impl FlowCanvas {
                         let dy = pt.y - prev_pt.y;
                         let seg_len = (dx * dx + dy * dy).sqrt();
 
-                        while next_particle_at <= accumulated_len + seg_len && next_particle_at <= total_len {
+                        while next_particle_at <= accumulated_len + seg_len
+                            && next_particle_at <= total_len
+                        {
                             let t = if seg_len > 0.001 {
                                 (next_particle_at - accumulated_len) / seg_len
                             } else {
@@ -1357,10 +1702,19 @@ impl FlowCanvas {
                             let px = prev_pt.x + dx * t;
                             let py = prev_pt.y + dy * t;
 
-                            self.draw_edge.draw_abs(cx, Rect {
-                                pos: DVec2 { x: px - half_particle, y: py - half_particle },
-                                size: DVec2 { x: particle_size, y: particle_size },
-                            });
+                            self.draw_edge.draw_abs(
+                                cx,
+                                Rect {
+                                    pos: DVec2 {
+                                        x: px - half_particle,
+                                        y: py - half_particle,
+                                    },
+                                    size: DVec2 {
+                                        x: particle_size,
+                                        y: particle_size,
+                                    },
+                                },
+                            );
 
                             next_particle_at += particle_spacing;
                         }
@@ -1388,10 +1742,19 @@ impl FlowCanvas {
                                 let t = s as f64 / steps as f64;
                                 let ix = prev_pt.x + dx * t;
                                 let iy = prev_pt.y + dy * t;
-                                self.draw_edge.draw_abs(cx, Rect {
-                                    pos: DVec2 { x: ix - half_thick, y: iy - half_thick },
-                                    size: DVec2 { x: thickness, y: thickness },
-                                });
+                                self.draw_edge.draw_abs(
+                                    cx,
+                                    Rect {
+                                        pos: DVec2 {
+                                            x: ix - half_thick,
+                                            y: iy - half_thick,
+                                        },
+                                        size: DVec2 {
+                                            x: thickness,
+                                            y: thickness,
+                                        },
+                                    },
+                                );
                             }
                         }
                     }
@@ -1425,10 +1788,19 @@ impl FlowCanvas {
                             let t = s as f64 / steps as f64;
                             let ix = prev_pt.x + dx * t;
                             let iy = prev_pt.y + dy * t;
-                            self.draw_edge.draw_abs(cx, Rect {
-                                pos: DVec2 { x: ix - half_thick, y: iy - half_thick },
-                                size: DVec2 { x: thickness, y: thickness },
-                            });
+                            self.draw_edge.draw_abs(
+                                cx,
+                                Rect {
+                                    pos: DVec2 {
+                                        x: ix - half_thick,
+                                        y: iy - half_thick,
+                                    },
+                                    size: DVec2 {
+                                        x: thickness,
+                                        y: thickness,
+                                    },
+                                },
+                            );
                         }
                     }
 
@@ -1467,10 +1839,19 @@ impl FlowCanvas {
                         let dot_x = prev_pt.x + dx * t;
                         let dot_y = prev_pt.y + dy * t;
 
-                        self.draw_edge.draw_abs(cx, Rect {
-                            pos: DVec2 { x: dot_x - half_dot, y: dot_y - half_dot },
-                            size: DVec2 { x: dot_size, y: dot_size },
-                        });
+                        self.draw_edge.draw_abs(
+                            cx,
+                            Rect {
+                                pos: DVec2 {
+                                    x: dot_x - half_dot,
+                                    y: dot_y - half_dot,
+                                },
+                                size: DVec2 {
+                                    x: dot_size,
+                                    y: dot_size,
+                                },
+                            },
+                        );
 
                         next_dot_at += dot_spacing;
                     }
@@ -1483,7 +1864,9 @@ impl FlowCanvas {
     }
 
     fn initialize(&mut self, cx: &mut Cx) {
-        if self.initialized { return; }
+        if self.initialized {
+            return;
+        }
 
         self.zoom = self.default_zoom;
         self.pan_offset = DVec2::default();
@@ -1547,8 +1930,14 @@ impl FlowCanvas {
 
         // Simple distance check to bezier (approximate with line segments)
         let dx = (to.x - from.x) * 0.5;
-        let c0 = DVec2 { x: from.x + dx, y: from.y };
-        let c1 = DVec2 { x: to.x - dx, y: to.y };
+        let c0 = DVec2 {
+            x: from.x + dx,
+            y: from.y,
+        };
+        let c1 = DVec2 {
+            x: to.x - dx,
+            y: to.y,
+        };
 
         for i in 0..32 {
             let t = i as f64 / 31.0;
@@ -1569,10 +1958,26 @@ impl FlowCanvas {
         false
     }
 
-    fn draw_node(&mut self, cx: &mut Cx2d, node: &FlowNode, selected: bool, shape: NodeShape, border_width: f64) {
-        let pos = self.canvas_to_screen_pt(DVec2 { x: node.x, y: node.y });
-        let size = DVec2 { x: node.width * self.zoom, y: node.height * self.zoom };
-        let center = DVec2 { x: pos.x + size.x * 0.5, y: pos.y + size.y * 0.5 };
+    fn draw_node(
+        &mut self,
+        cx: &mut Cx2d,
+        node: &FlowNode,
+        selected: bool,
+        shape: NodeShape,
+        border_width: f64,
+    ) {
+        let pos = self.canvas_to_screen_pt(DVec2 {
+            x: node.x,
+            y: node.y,
+        });
+        let size = DVec2 {
+            x: node.width * self.zoom,
+            y: node.height * self.zoom,
+        };
+        let center = DVec2 {
+            x: pos.x + size.x * 0.5,
+            y: pos.y + size.y * 0.5,
+        };
 
         // Node background color - light theme (white nodes with colored headers)
         let (bg_color, header_color) = if node.category == NodeCategory::Default {
@@ -1589,8 +1994,20 @@ impl FlowCanvas {
             let head_color = node.category.header_color();
             if selected {
                 // Slightly darker tint when selected
-                (vec4(base_color.x * 0.95 + 0.05, base_color.y * 0.95 + 0.05, base_color.z * 0.95 + 0.05, 1.0),
-                 vec4(head_color.x * 0.95, head_color.y * 0.95, head_color.z * 0.95, 1.0))
+                (
+                    vec4(
+                        base_color.x * 0.95 + 0.05,
+                        base_color.y * 0.95 + 0.05,
+                        base_color.z * 0.95 + 0.05,
+                        1.0,
+                    ),
+                    vec4(
+                        head_color.x * 0.95,
+                        head_color.y * 0.95,
+                        head_color.z * 0.95,
+                        1.0,
+                    ),
+                )
             } else {
                 // Light pastel body with category header
                 (vec4(1.0, 1.0, 1.0, 1.0), head_color)
@@ -1603,24 +2020,50 @@ impl FlowCanvas {
                 // Draw rounded rectangle node with header (rounded top, straight bottom)
                 let corner_r = (node::CORNER_RADIUS * self.zoom) as f32;
                 let header_h = node::HEADER_HEIGHT * self.zoom;
-                let bw = if selected { border_width.max(2.0) as f32 } else { border_width as f32 };
-                let bc = if selected { border_color } else { vec4(0.88, 0.88, 0.88, 1.0) }; // #e0e0e0
+                let bw = if selected {
+                    border_width.max(2.0) as f32
+                } else {
+                    border_width as f32
+                };
+                let bc = if selected {
+                    border_color
+                } else {
+                    vec4(0.88, 0.88, 0.88, 1.0)
+                }; // #e0e0e0
                 let inset = bw as f64;
 
                 // 1. Draw body (below header)
                 self.draw_node_bg.color = bg_color;
-                self.draw_node_bg.draw_abs(cx, Rect {
-                    pos: DVec2 { x: pos.x + inset, y: pos.y + header_h },
-                    size: DVec2 { x: size.x - inset * 2.0, y: size.y - header_h - inset }
-                });
+                self.draw_node_bg.draw_abs(
+                    cx,
+                    Rect {
+                        pos: DVec2 {
+                            x: pos.x + inset,
+                            y: pos.y + header_h,
+                        },
+                        size: DVec2 {
+                            x: size.x - inset * 2.0,
+                            y: size.y - header_h - inset,
+                        },
+                    },
+                );
 
                 // 2. Draw header with rounded TOP corners only (flat bottom)
                 self.draw_rounded_top_rect.color = header_color;
                 self.draw_rounded_top_rect.radius = corner_r;
-                self.draw_rounded_top_rect.draw_abs(cx, Rect {
-                    pos: DVec2 { x: pos.x + inset, y: pos.y + inset },
-                    size: DVec2 { x: size.x - inset * 2.0, y: header_h - inset }
-                });
+                self.draw_rounded_top_rect.draw_abs(
+                    cx,
+                    Rect {
+                        pos: DVec2 {
+                            x: pos.x + inset,
+                            y: pos.y + inset,
+                        },
+                        size: DVec2 {
+                            x: size.x - inset * 2.0,
+                            y: header_h - inset,
+                        },
+                    },
+                );
 
                 // 3. Draw outer border
                 self.draw_rounded_rect.color = vec4(0.0, 0.0, 0.0, 0.0);
@@ -1633,25 +2076,51 @@ impl FlowCanvas {
                 // Draw fully rounded rectangle node (rounded top header + rounded bottom body)
                 let corner_r = (node::CORNER_RADIUS * self.zoom) as f32;
                 let header_h = node::HEADER_HEIGHT * self.zoom;
-                let bw = if selected { border_width.max(2.0) as f32 } else { border_width as f32 };
-                let bc = if selected { border_color } else { vec4(0.88, 0.88, 0.88, 1.0) }; // #e0e0e0
+                let bw = if selected {
+                    border_width.max(2.0) as f32
+                } else {
+                    border_width as f32
+                };
+                let bc = if selected {
+                    border_color
+                } else {
+                    vec4(0.88, 0.88, 0.88, 1.0)
+                }; // #e0e0e0
                 let inset = bw as f64;
 
                 // 1. Draw body with rounded BOTTOM corners only (straight top)
                 self.draw_rounded_bottom_rect.color = bg_color;
                 self.draw_rounded_bottom_rect.radius = corner_r;
-                self.draw_rounded_bottom_rect.draw_abs(cx, Rect {
-                    pos: DVec2 { x: pos.x + inset, y: pos.y + header_h },
-                    size: DVec2 { x: size.x - inset * 2.0, y: size.y - header_h - inset }
-                });
+                self.draw_rounded_bottom_rect.draw_abs(
+                    cx,
+                    Rect {
+                        pos: DVec2 {
+                            x: pos.x + inset,
+                            y: pos.y + header_h,
+                        },
+                        size: DVec2 {
+                            x: size.x - inset * 2.0,
+                            y: size.y - header_h - inset,
+                        },
+                    },
+                );
 
                 // 2. Draw header with rounded TOP corners only (straight bottom)
                 self.draw_rounded_top_rect.color = header_color;
                 self.draw_rounded_top_rect.radius = corner_r;
-                self.draw_rounded_top_rect.draw_abs(cx, Rect {
-                    pos: DVec2 { x: pos.x + inset, y: pos.y + inset },
-                    size: DVec2 { x: size.x - inset * 2.0, y: header_h - inset }
-                });
+                self.draw_rounded_top_rect.draw_abs(
+                    cx,
+                    Rect {
+                        pos: DVec2 {
+                            x: pos.x + inset,
+                            y: pos.y + inset,
+                        },
+                        size: DVec2 {
+                            x: size.x - inset * 2.0,
+                            y: header_h - inset,
+                        },
+                    },
+                );
 
                 // 3. Draw outer border
                 self.draw_rounded_rect.color = vec4(0.0, 0.0, 0.0, 0.0);
@@ -1667,29 +2136,67 @@ impl FlowCanvas {
 
                 // Draw header
                 self.draw_node_bg.color = header_color;
-                self.draw_node_bg.draw_abs(cx, Rect {
-                    pos,
-                    size: DVec2 { x: size.x, y: 32.0 * self.zoom }
-                });
+                self.draw_node_bg.draw_abs(
+                    cx,
+                    Rect {
+                        pos,
+                        size: DVec2 {
+                            x: size.x,
+                            y: 32.0 * self.zoom,
+                        },
+                    },
+                );
 
                 // Border
                 if selected || border_width > 0.0 {
-                    let bw = if selected { border_width.max(2.0) } else { border_width };
-                    self.draw_node_bg.color = if selected { border_color } else { vec4(0.4, 0.4, 0.5, 0.6) };
+                    let bw = if selected {
+                        border_width.max(2.0)
+                    } else {
+                        border_width
+                    };
+                    self.draw_node_bg.color = if selected {
+                        border_color
+                    } else {
+                        vec4(0.4, 0.4, 0.5, 0.6)
+                    };
                     // Top
-                    self.draw_node_bg.draw_abs(cx, Rect { pos, size: DVec2 { x: size.x, y: bw } });
+                    self.draw_node_bg.draw_abs(
+                        cx,
+                        Rect {
+                            pos,
+                            size: DVec2 { x: size.x, y: bw },
+                        },
+                    );
                     // Bottom
-                    self.draw_node_bg.draw_abs(cx, Rect {
-                        pos: DVec2 { x: pos.x, y: pos.y + size.y - bw },
-                        size: DVec2 { x: size.x, y: bw }
-                    });
+                    self.draw_node_bg.draw_abs(
+                        cx,
+                        Rect {
+                            pos: DVec2 {
+                                x: pos.x,
+                                y: pos.y + size.y - bw,
+                            },
+                            size: DVec2 { x: size.x, y: bw },
+                        },
+                    );
                     // Left
-                    self.draw_node_bg.draw_abs(cx, Rect { pos, size: DVec2 { x: bw, y: size.y } });
+                    self.draw_node_bg.draw_abs(
+                        cx,
+                        Rect {
+                            pos,
+                            size: DVec2 { x: bw, y: size.y },
+                        },
+                    );
                     // Right
-                    self.draw_node_bg.draw_abs(cx, Rect {
-                        pos: DVec2 { x: pos.x + size.x - bw, y: pos.y },
-                        size: DVec2 { x: bw, y: size.y }
-                    });
+                    self.draw_node_bg.draw_abs(
+                        cx,
+                        Rect {
+                            pos: DVec2 {
+                                x: pos.x + size.x - bw,
+                                y: pos.y,
+                            },
+                            size: DVec2 { x: bw, y: size.y },
+                        },
+                    );
                 }
             }
             NodeShape::Round => {
@@ -1701,7 +2208,8 @@ impl FlowCanvas {
                 let segments = 36;
                 for i in 0..segments {
                     let angle = (i as f64 / segments as f64) * std::f64::consts::PI * 2.0;
-                    let next_angle = ((i + 1) as f64 / segments as f64) * std::f64::consts::PI * 2.0;
+                    let next_angle =
+                        ((i + 1) as f64 / segments as f64) * std::f64::consts::PI * 2.0;
 
                     // Draw pie slice as triangular approximation
                     for r in 0..((radius / 3.0) as i32).max(1) {
@@ -1714,10 +2222,16 @@ impl FlowCanvas {
                             let curr_angle = angle + (next_angle - angle) * t;
                             let px = center.x + curr_angle.cos() * (inner_r + outer_r) * 0.5;
                             let py = center.y + curr_angle.sin() * (inner_r + outer_r) * 0.5;
-                            self.draw_node_bg.draw_abs(cx, Rect {
-                                pos: DVec2 { x: px - 2.0, y: py - 2.0 },
-                                size: DVec2 { x: 4.0, y: 4.0 },
-                            });
+                            self.draw_node_bg.draw_abs(
+                                cx,
+                                Rect {
+                                    pos: DVec2 {
+                                        x: px - 2.0,
+                                        y: py - 2.0,
+                                    },
+                                    size: DVec2 { x: 4.0, y: 4.0 },
+                                },
+                            );
                         }
                     }
                 }
@@ -1725,8 +2239,11 @@ impl FlowCanvas {
                 // Draw header portion (top half darker)
                 self.draw_node_bg.color = header_color;
                 for i in 0..(segments / 2) {
-                    let angle = (i as f64 / segments as f64) * std::f64::consts::PI * 2.0 - std::f64::consts::PI * 0.5;
-                    let next_angle = ((i + 1) as f64 / segments as f64) * std::f64::consts::PI * 2.0 - std::f64::consts::PI * 0.5;
+                    let angle = (i as f64 / segments as f64) * std::f64::consts::PI * 2.0
+                        - std::f64::consts::PI * 0.5;
+                    let next_angle =
+                        ((i + 1) as f64 / segments as f64) * std::f64::consts::PI * 2.0
+                            - std::f64::consts::PI * 0.5;
 
                     for r in 0..((radius / 3.0) as i32).max(1) {
                         let r_ratio = r as f64 / (radius / 3.0);
@@ -1739,10 +2256,16 @@ impl FlowCanvas {
                             let px = center.x + curr_angle.cos() * (inner_r + outer_r) * 0.5;
                             let py = center.y + curr_angle.sin() * (inner_r + outer_r) * 0.5;
                             if py < center.y {
-                                self.draw_node_bg.draw_abs(cx, Rect {
-                                    pos: DVec2 { x: px - 2.0, y: py - 2.0 },
-                                    size: DVec2 { x: 4.0, y: 4.0 },
-                                });
+                                self.draw_node_bg.draw_abs(
+                                    cx,
+                                    Rect {
+                                        pos: DVec2 {
+                                            x: px - 2.0,
+                                            y: py - 2.0,
+                                        },
+                                        size: DVec2 { x: 4.0, y: 4.0 },
+                                    },
+                                );
                             }
                         }
                     }
@@ -1750,16 +2273,30 @@ impl FlowCanvas {
 
                 // Border ring
                 if selected || border_width > 0.0 {
-                    let bw = if selected { border_width.max(2.0) } else { border_width };
-                    self.draw_node_bg.color = if selected { border_color } else { vec4(0.4, 0.4, 0.5, 0.6) };
+                    let bw = if selected {
+                        border_width.max(2.0)
+                    } else {
+                        border_width
+                    };
+                    self.draw_node_bg.color = if selected {
+                        border_color
+                    } else {
+                        vec4(0.4, 0.4, 0.5, 0.6)
+                    };
                     for i in 0..72 {
                         let angle = (i as f64 / 72.0) * std::f64::consts::PI * 2.0;
                         let px = center.x + angle.cos() * radius;
                         let py = center.y + angle.sin() * radius;
-                        self.draw_node_bg.draw_abs(cx, Rect {
-                            pos: DVec2 { x: px - bw * 0.5, y: py - bw * 0.5 },
-                            size: DVec2 { x: bw, y: bw },
-                        });
+                        self.draw_node_bg.draw_abs(
+                            cx,
+                            Rect {
+                                pos: DVec2 {
+                                    x: px - bw * 0.5,
+                                    y: py - bw * 0.5,
+                                },
+                                size: DVec2 { x: bw, y: bw },
+                            },
+                        );
                     }
                 }
             }
@@ -1779,10 +2316,13 @@ impl FlowCanvas {
 
                     let mut x = center.x - width_at_y;
                     while x < center.x + width_at_y {
-                        self.draw_node_bg.draw_abs(cx, Rect {
-                            pos: DVec2 { x, y },
-                            size: DVec2 { x: step, y: step },
-                        });
+                        self.draw_node_bg.draw_abs(
+                            cx,
+                            Rect {
+                                pos: DVec2 { x, y },
+                                size: DVec2 { x: step, y: step },
+                            },
+                        );
                         x += step;
                     }
                     y += step;
@@ -1798,10 +2338,13 @@ impl FlowCanvas {
 
                     let mut x = center.x - width_at_y;
                     while x < center.x + width_at_y {
-                        self.draw_node_bg.draw_abs(cx, Rect {
-                            pos: DVec2 { x, y },
-                            size: DVec2 { x: step, y: step },
-                        });
+                        self.draw_node_bg.draw_abs(
+                            cx,
+                            Rect {
+                                pos: DVec2 { x, y },
+                                size: DVec2 { x: step, y: step },
+                            },
+                        );
                         x += step;
                     }
                     y += step;
@@ -1809,17 +2352,38 @@ impl FlowCanvas {
 
                 // Diamond border
                 if selected || border_width > 0.0 {
-                    let bw = if selected { border_width.max(2.0) } else { border_width };
-                    self.draw_node_bg.color = if selected { border_color } else { vec4(0.4, 0.4, 0.5, 0.6) };
+                    let bw = if selected {
+                        border_width.max(2.0)
+                    } else {
+                        border_width
+                    };
+                    self.draw_node_bg.color = if selected {
+                        border_color
+                    } else {
+                        vec4(0.4, 0.4, 0.5, 0.6)
+                    };
 
                     // Draw 4 edges of diamond
-                    let top = DVec2 { x: center.x, y: pos.y };
-                    let right = DVec2 { x: pos.x + size.x, y: center.y };
-                    let bottom = DVec2 { x: center.x, y: pos.y + size.y };
-                    let left = DVec2 { x: pos.x, y: center.y };
+                    let top = DVec2 {
+                        x: center.x,
+                        y: pos.y,
+                    };
+                    let right = DVec2 {
+                        x: pos.x + size.x,
+                        y: center.y,
+                    };
+                    let bottom = DVec2 {
+                        x: center.x,
+                        y: pos.y + size.y,
+                    };
+                    let left = DVec2 {
+                        x: pos.x,
+                        y: center.y,
+                    };
 
                     // Draw each edge
-                    for (start, end) in [(top, right), (right, bottom), (bottom, left), (left, top)] {
+                    for (start, end) in [(top, right), (right, bottom), (bottom, left), (left, top)]
+                    {
                         let dx = end.x - start.x;
                         let dy = end.y - start.y;
                         let len = (dx * dx + dy * dy).sqrt();
@@ -1828,10 +2392,16 @@ impl FlowCanvas {
                             let t = s as f64 / steps as f64;
                             let px = start.x + dx * t;
                             let py = start.y + dy * t;
-                            self.draw_node_bg.draw_abs(cx, Rect {
-                                pos: DVec2 { x: px - bw * 0.5, y: py - bw * 0.5 },
-                                size: DVec2 { x: bw, y: bw },
-                            });
+                            self.draw_node_bg.draw_abs(
+                                cx,
+                                Rect {
+                                    pos: DVec2 {
+                                        x: px - bw * 0.5,
+                                        y: py - bw * 0.5,
+                                    },
+                                    size: DVec2 { x: bw, y: bw },
+                                },
+                            );
                         }
                     }
                 }
@@ -1846,21 +2416,55 @@ impl FlowCanvas {
         let mut display_title = node.title.clone();
         let max_chars = 20;
         if display_title.chars().count() > max_chars {
-            display_title = display_title.chars().take(max_chars - 2).collect::<String>() + "..";
+            display_title = display_title
+                .chars()
+                .take(max_chars - 2)
+                .collect::<String>()
+                + "..";
         }
 
         match shape {
             NodeShape::Round | NodeShape::Diamond => {
-                let laidout = self.draw_text.layout(cx, 0.0, 0.0, None, false, Align::default(), &display_title);
+                let laidout = self.draw_text.layout(
+                    cx,
+                    0.0,
+                    0.0,
+                    None,
+                    false,
+                    Align::default(),
+                    &display_title,
+                );
                 let text_w = laidout.size_in_lpxs.width as f64;
-                self.draw_text.draw_abs(cx, DVec2 { x: center.x - text_w / 2.0, y: center.y - 8.0 }, &display_title);
+                self.draw_text.draw_abs(
+                    cx,
+                    DVec2 {
+                        x: center.x - text_w / 2.0,
+                        y: center.y - 8.0,
+                    },
+                    &display_title,
+                );
             }
             _ => {
-                let laidout = self.draw_text.layout(cx, 0.0, 0.0, None, false, Align::default(), &display_title);
+                let laidout = self.draw_text.layout(
+                    cx,
+                    0.0,
+                    0.0,
+                    None,
+                    false,
+                    Align::default(),
+                    &display_title,
+                );
                 let text_w = laidout.size_in_lpxs.width as f64;
                 let text_h = laidout.size_in_lpxs.height as f64;
                 let header_h = node::HEADER_HEIGHT * self.zoom;
-                self.draw_text.draw_abs(cx, DVec2 { x: center.x - text_w / 2.0, y: pos.y + (header_h - text_h) / 2.0 }, &display_title);
+                self.draw_text.draw_abs(
+                    cx,
+                    DVec2 {
+                        x: center.x - text_w / 2.0,
+                        y: pos.y + (header_h - text_h) / 2.0,
+                    },
+                    &display_title,
+                );
             }
         }
 
@@ -1875,32 +2479,60 @@ impl FlowCanvas {
                 NodeShape::Round => {
                     let radius = size.x.min(size.y) * 0.5;
                     (
-                        DVec2 { x: center.x - radius, y: center.y },
-                        DVec2 { x: center.x + radius, y: center.y }
+                        DVec2 {
+                            x: center.x - radius,
+                            y: center.y,
+                        },
+                        DVec2 {
+                            x: center.x + radius,
+                            y: center.y,
+                        },
                     )
                 }
-                _ => {
-                    (
-                        DVec2 { x: pos.x, y: center.y },
-                        DVec2 { x: pos.x + size.x, y: center.y }
-                    )
-                }
+                _ => (
+                    DVec2 {
+                        x: pos.x,
+                        y: center.y,
+                    },
+                    DVec2 {
+                        x: pos.x + size.x,
+                        y: center.y,
+                    },
+                ),
             };
 
             if node.node_type.has_input() {
                 self.draw_node_bg.color = vec4(0.23, 0.51, 0.96, 1.0);
-                self.draw_node_bg.draw_abs(cx, Rect {
-                    pos: DVec2 { x: input_screen_pos.x - port_radius, y: input_screen_pos.y - port_radius },
-                    size: DVec2 { x: port_radius * 2.0, y: port_radius * 2.0 },
-                });
+                self.draw_node_bg.draw_abs(
+                    cx,
+                    Rect {
+                        pos: DVec2 {
+                            x: input_screen_pos.x - port_radius,
+                            y: input_screen_pos.y - port_radius,
+                        },
+                        size: DVec2 {
+                            x: port_radius * 2.0,
+                            y: port_radius * 2.0,
+                        },
+                    },
+                );
             }
 
             if node.node_type.has_output() {
                 self.draw_node_bg.color = vec4(0.13, 0.77, 0.37, 1.0);
-                self.draw_node_bg.draw_abs(cx, Rect {
-                    pos: DVec2 { x: output_screen_pos.x - port_radius, y: output_screen_pos.y - port_radius },
-                    size: DVec2 { x: port_radius * 2.0, y: port_radius * 2.0 },
-                });
+                self.draw_node_bg.draw_abs(
+                    cx,
+                    Rect {
+                        pos: DVec2 {
+                            x: output_screen_pos.x - port_radius,
+                            y: output_screen_pos.y - port_radius,
+                        },
+                        size: DVec2 {
+                            x: port_radius * 2.0,
+                            y: port_radius * 2.0,
+                        },
+                    },
+                );
             }
         } else {
             // Draw multiple input ports with labels
@@ -1913,10 +2545,19 @@ impl FlowCanvas {
 
                 // Draw port circle (blue for input)
                 self.draw_node_bg.color = vec4(0.23, 0.51, 0.96, 1.0);
-                self.draw_node_bg.draw_abs(cx, Rect {
-                    pos: DVec2 { x: port_x - port_radius, y: port_y - port_radius },
-                    size: DVec2 { x: port_radius * 2.0, y: port_radius * 2.0 },
-                });
+                self.draw_node_bg.draw_abs(
+                    cx,
+                    Rect {
+                        pos: DVec2 {
+                            x: port_x - port_radius,
+                            y: port_y - port_radius,
+                        },
+                        size: DVec2 {
+                            x: port_radius * 2.0,
+                            y: port_radius * 2.0,
+                        },
+                    },
+                );
 
                 // Draw port label
                 let label = if port.label.len() > 12 {
@@ -1924,7 +2565,14 @@ impl FlowCanvas {
                 } else {
                     port.label.clone()
                 };
-                self.draw_text.draw_abs(cx, DVec2 { x: port_x + port_radius + 4.0, y: port_y - 5.0 }, &label);
+                self.draw_text.draw_abs(
+                    cx,
+                    DVec2 {
+                        x: port_x + port_radius + 4.0,
+                        y: port_y - 5.0,
+                    },
+                    &label,
+                );
             }
 
             // Draw multiple output ports with labels
@@ -1934,10 +2582,19 @@ impl FlowCanvas {
 
                 // Draw port circle (green for output)
                 self.draw_node_bg.color = vec4(0.13, 0.77, 0.37, 1.0);
-                self.draw_node_bg.draw_abs(cx, Rect {
-                    pos: DVec2 { x: port_x - port_radius, y: port_y - port_radius },
-                    size: DVec2 { x: port_radius * 2.0, y: port_radius * 2.0 },
-                });
+                self.draw_node_bg.draw_abs(
+                    cx,
+                    Rect {
+                        pos: DVec2 {
+                            x: port_x - port_radius,
+                            y: port_y - port_radius,
+                        },
+                        size: DVec2 {
+                            x: port_radius * 2.0,
+                            y: port_radius * 2.0,
+                        },
+                    },
+                );
 
                 // Draw port label (right-aligned)
                 let label = if port.label.len() > 12 {
@@ -1945,9 +2602,18 @@ impl FlowCanvas {
                 } else {
                     port.label.clone()
                 };
-                let laidout = self.draw_text.layout(cx, 0.0, 0.0, None, false, Align::default(), &label);
+                let laidout =
+                    self.draw_text
+                        .layout(cx, 0.0, 0.0, None, false, Align::default(), &label);
                 let text_w = laidout.size_in_lpxs.width as f64;
-                self.draw_text.draw_abs(cx, DVec2 { x: port_x - port_radius - text_w - 4.0, y: port_y - 5.0 }, &label);
+                self.draw_text.draw_abs(
+                    cx,
+                    DVec2 {
+                        x: port_x - port_radius - text_w - 4.0,
+                        y: port_y - 5.0,
+                    },
+                    &label,
+                );
             }
         }
     }
@@ -1961,7 +2627,11 @@ impl FlowCanvas {
         // Check if this is a multi-selection context menu
         let node_idx = self.context_menu_node.unwrap_or(0);
         let is_multi = self.selected_nodes.contains(&node_idx) && self.selected_nodes.len() > 1;
-        let multi_count = if is_multi { self.selected_nodes.len() } else { 1 };
+        let multi_count = if is_multi {
+            self.selected_nodes.len()
+        } else {
+            1
+        };
 
         // Add extra space for multi-selection header
         let num_items = if is_multi { 12 } else { 11 }; // +1 for multi header
@@ -1969,27 +2639,69 @@ impl FlowCanvas {
 
         // Menu background (light theme)
         self.draw_node_bg.color = vec4(1.0, 1.0, 1.0, 0.98);
-        self.draw_node_bg.draw_abs(cx, Rect {
-            pos,
-            size: DVec2 { x: menu_width, y: menu_height },
-        });
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos,
+                size: DVec2 {
+                    x: menu_width,
+                    y: menu_height,
+                },
+            },
+        );
 
         // Border (light theme)
         self.draw_node_bg.color = vec4(0.88, 0.88, 0.88, 1.0); // #e0e0e0
-        // Top
-        self.draw_node_bg.draw_abs(cx, Rect { pos, size: DVec2 { x: menu_width, y: 1.0 } });
+                                                               // Top
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos,
+                size: DVec2 {
+                    x: menu_width,
+                    y: 1.0,
+                },
+            },
+        );
         // Bottom
-        self.draw_node_bg.draw_abs(cx, Rect {
-            pos: DVec2 { x: pos.x, y: pos.y + menu_height - 1.0 },
-            size: DVec2 { x: menu_width, y: 1.0 }
-        });
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos: DVec2 {
+                    x: pos.x,
+                    y: pos.y + menu_height - 1.0,
+                },
+                size: DVec2 {
+                    x: menu_width,
+                    y: 1.0,
+                },
+            },
+        );
         // Left
-        self.draw_node_bg.draw_abs(cx, Rect { pos, size: DVec2 { x: 1.0, y: menu_height } });
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos,
+                size: DVec2 {
+                    x: 1.0,
+                    y: menu_height,
+                },
+            },
+        );
         // Right
-        self.draw_node_bg.draw_abs(cx, Rect {
-            pos: DVec2 { x: pos.x + menu_width - 1.0, y: pos.y },
-            size: DVec2 { x: 1.0, y: menu_height }
-        });
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos: DVec2 {
+                    x: pos.x + menu_width - 1.0,
+                    y: pos.y,
+                },
+                size: DVec2 {
+                    x: 1.0,
+                    y: menu_height,
+                },
+            },
+        );
 
         let mut y = pos.y + padding;
 
@@ -1997,37 +2709,59 @@ impl FlowCanvas {
         if is_multi {
             self.draw_text.text_style.font_size = 9.0;
             self.draw_text.color = self.selection_color;
-            self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, &format!("Apply to {} nodes", multi_count));
+            self.draw_text.draw_abs(
+                cx,
+                DVec2 { x: pos.x + 8.0, y },
+                &format!("Apply to {} nodes", multi_count),
+            );
             y += item_height;
         }
 
         // Section label - Shape (light theme)
         self.draw_text.text_style.font_size = 9.0;
         self.draw_text.color = vec4(0.6, 0.6, 0.6, 1.0); // #999999
-        self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, "Shape");
+        self.draw_text
+            .draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, "Shape");
         y += item_height * 0.8;
 
         // Shape items (light theme)
-        let shape_items = ["Rounded Rect", "Double Rounded", "Rectangle", "Round", "Diamond"];
+        let shape_items = [
+            "Rounded Rect",
+            "Double Rounded",
+            "Rectangle",
+            "Round",
+            "Diamond",
+        ];
         self.draw_text.text_style.font_size = 10.0;
         self.draw_text.color = vec4(0.2, 0.2, 0.2, 1.0); // #333333
         for label in shape_items {
-            self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 12.0, y }, label);
+            self.draw_text
+                .draw_abs(cx, DVec2 { x: pos.x + 12.0, y }, label);
             y += item_height;
         }
 
         // Divider (light theme)
         self.draw_node_bg.color = vec4(0.88, 0.88, 0.88, 1.0); // #e0e0e0
-        self.draw_node_bg.draw_abs(cx, Rect {
-            pos: DVec2 { x: pos.x + 8.0, y: y + 2.0 },
-            size: DVec2 { x: menu_width - 16.0, y: 1.0 }
-        });
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos: DVec2 {
+                    x: pos.x + 8.0,
+                    y: y + 2.0,
+                },
+                size: DVec2 {
+                    x: menu_width - 16.0,
+                    y: 1.0,
+                },
+            },
+        );
         y += item_height * 0.5;
 
         // Section label - Border (light theme)
         self.draw_text.text_style.font_size = 9.0;
         self.draw_text.color = vec4(0.6, 0.6, 0.6, 1.0); // #999999
-        self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, "Border");
+        self.draw_text
+            .draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, "Border");
         y += item_height * 0.8;
 
         // Border items (light theme)
@@ -2035,7 +2769,8 @@ impl FlowCanvas {
         self.draw_text.text_style.font_size = 10.0;
         self.draw_text.color = vec4(0.2, 0.2, 0.2, 1.0); // #333333
         for label in border_items {
-            self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 12.0, y }, label);
+            self.draw_text
+                .draw_abs(cx, DVec2 { x: pos.x + 12.0, y }, label);
             y += item_height;
         }
     }
@@ -2087,11 +2822,16 @@ impl FlowCanvas {
             for node_idx in nodes_to_remove {
                 if node_idx < self.nodes.len() {
                     // Remove edges connected to this node
-                    self.edges.retain(|e| e.from_node != node_idx && e.to_node != node_idx);
+                    self.edges
+                        .retain(|e| e.from_node != node_idx && e.to_node != node_idx);
                     // Update edge indices for remaining edges
                     for edge in &mut self.edges {
-                        if edge.from_node > node_idx { edge.from_node -= 1; }
-                        if edge.to_node > node_idx { edge.to_node -= 1; }
+                        if edge.from_node > node_idx {
+                            edge.from_node -= 1;
+                        }
+                        if edge.to_node > node_idx {
+                            edge.to_node -= 1;
+                        }
                     }
                     self.nodes.remove(node_idx);
                 }
@@ -2109,7 +2849,7 @@ impl FlowCanvas {
             edges: self.edges.clone(),
         });
         // Limit undo stack size
-        if self.undo_stack.len() > canvas::UNDO_STACK_SIZE {
+        if self.undo_stack.len() > UNDO_STACK_SIZE {
             self.undo_stack.remove(0);
         }
         // Clear redo stack on new action
@@ -2158,7 +2898,9 @@ impl FlowCanvas {
     }
 
     pub fn fit_view(&mut self, cx: &mut Cx) {
-        if self.nodes.is_empty() { return; }
+        if self.nodes.is_empty() {
+            return;
+        }
 
         // Find bounding box of all nodes
         let mut min_x = f64::MAX;
@@ -2170,13 +2912,16 @@ impl FlowCanvas {
         }
 
         // Add padding
-        let padding = canvas::FIT_VIEW_PADDING;
+        let padding = FIT_VIEW_PADDING;
         min_x -= padding;
         min_y -= padding;
 
         // Reset to fit
         self.zoom = 1.0;
-        self.pan_offset = DVec2 { x: -min_x, y: -min_y };
+        self.pan_offset = DVec2 {
+            x: -min_x,
+            y: -min_y,
+        };
         self.view.redraw(cx);
     }
 
@@ -2190,16 +2935,29 @@ impl FlowCanvas {
     }
 
     /// Draw arrow marker at edge endpoint
-    fn draw_edge_marker(&mut self, cx: &mut Cx2d, from: DVec2, to: DVec2, selected: bool, thickness: f64, marker: EdgeMarker) {
+    fn draw_edge_marker(
+        &mut self,
+        cx: &mut Cx2d,
+        from: DVec2,
+        to: DVec2,
+        selected: bool,
+        thickness: f64,
+        marker: EdgeMarker,
+    ) {
         // Calculate direction at endpoint using bezier tangent
         let dx = to.x - from.x;
         let control_offset = dx.abs() * 0.5;
         // Approximate tangent at end point (towards to from control point)
-        let c1 = DVec2 { x: to.x - control_offset, y: to.y };
+        let c1 = DVec2 {
+            x: to.x - control_offset,
+            y: to.y,
+        };
         let dir_x = to.x - c1.x;
         let dir_y = to.y - c1.y;
         let len = (dir_x * dir_x + dir_y * dir_y).sqrt();
-        if len < 0.001 { return; }
+        if len < 0.001 {
+            return;
+        }
         let nx = dir_x / len;
         let ny = dir_y / len;
 
@@ -2216,8 +2974,14 @@ impl FlowCanvas {
                 let px = -ny;
                 let py = nx;
 
-                let left = DVec2 { x: tip.x - nx * back + px * width, y: tip.y - ny * back + py * width };
-                let right = DVec2 { x: tip.x - nx * back - px * width, y: tip.y - ny * back - py * width };
+                let left = DVec2 {
+                    x: tip.x - nx * back + px * width,
+                    y: tip.y - ny * back + py * width,
+                };
+                let right = DVec2 {
+                    x: tip.x - nx * back - px * width,
+                    y: tip.y - ny * back - py * width,
+                };
 
                 self.draw_edge.color = if selected {
                     self.edge_selected_color
@@ -2246,10 +3010,19 @@ impl FlowCanvas {
                     let angle = (i as f64 / 16.0) * std::f64::consts::PI * 2.0;
                     let px = to.x + angle.cos() * radius;
                     let py = to.y + angle.sin() * radius;
-                    self.draw_edge.draw_abs(cx, Rect {
-                        pos: DVec2 { x: px - thickness * 0.5, y: py - thickness * 0.5 },
-                        size: DVec2 { x: thickness, y: thickness },
-                    });
+                    self.draw_edge.draw_abs(
+                        cx,
+                        Rect {
+                            pos: DVec2 {
+                                x: px - thickness * 0.5,
+                                y: py - thickness * 0.5,
+                            },
+                            size: DVec2 {
+                                x: thickness,
+                                y: thickness,
+                            },
+                        },
+                    );
                 }
             }
             EdgeMarker::None => {}
@@ -2269,10 +3042,13 @@ impl FlowCanvas {
             let mut x = min_x;
             while x <= max_x {
                 if self.point_in_triangle(DVec2 { x, y }, p0, p1, p2) {
-                    self.draw_edge.draw_abs(cx, Rect {
-                        pos: DVec2 { x, y },
-                        size: DVec2 { x: step, y: step },
-                    });
+                    self.draw_edge.draw_abs(
+                        cx,
+                        Rect {
+                            pos: DVec2 { x, y },
+                            size: DVec2 { x: step, y: step },
+                        },
+                    );
                 }
                 x += step;
             }
@@ -2281,9 +3057,12 @@ impl FlowCanvas {
     }
 
     fn point_in_triangle(&self, p: DVec2, p0: DVec2, p1: DVec2, p2: DVec2) -> bool {
-        let area = 0.5 * (-p1.y * p2.x + p0.y * (-p1.x + p2.x) + p0.x * (p1.y - p2.y) + p1.x * p2.y);
-        let s = 1.0 / (2.0 * area) * (p0.y * p2.x - p0.x * p2.y + (p2.y - p0.y) * p.x + (p0.x - p2.x) * p.y);
-        let t = 1.0 / (2.0 * area) * (p0.x * p1.y - p0.y * p1.x + (p0.y - p1.y) * p.x + (p1.x - p0.x) * p.y);
+        let area =
+            0.5 * (-p1.y * p2.x + p0.y * (-p1.x + p2.x) + p0.x * (p1.y - p2.y) + p1.x * p2.y);
+        let s = 1.0 / (2.0 * area)
+            * (p0.y * p2.x - p0.x * p2.y + (p2.y - p0.y) * p.x + (p0.x - p2.x) * p.y);
+        let t = 1.0 / (2.0 * area)
+            * (p0.x * p1.y - p0.y * p1.x + (p0.y - p1.y) * p.x + (p1.x - p0.x) * p.y);
         s >= 0.0 && t >= 0.0 && (s + t) <= 1.0
     }
 
@@ -2298,15 +3077,28 @@ impl FlowCanvas {
             let t = i as f64 / steps as f64;
             let x = from.x + dx * t;
             let y = from.y + dy * t;
-            self.draw_edge.draw_abs(cx, Rect {
-                pos: DVec2 { x: x - half, y: y - half },
-                size: DVec2 { x: thickness, y: thickness },
-            });
+            self.draw_edge.draw_abs(
+                cx,
+                Rect {
+                    pos: DVec2 {
+                        x: x - half,
+                        y: y - half,
+                    },
+                    size: DVec2 {
+                        x: thickness,
+                        y: thickness,
+                    },
+                },
+            );
         }
     }
 
-    pub fn node_count(&self) -> usize { self.nodes.len() }
-    pub fn edge_count(&self) -> usize { self.edges.len() }
+    pub fn node_count(&self) -> usize {
+        self.nodes.len()
+    }
+    pub fn edge_count(&self) -> usize {
+        self.edges.len()
+    }
 
     /// Load nodes and edges from external source
     pub fn load_graph(&mut self, cx: &mut Cx, nodes: Vec<FlowNode>, edges: Vec<EdgeConnection>) {
@@ -2347,23 +3139,65 @@ impl FlowCanvas {
 
         // Menu background (light theme)
         self.draw_node_bg.color = vec4(1.0, 1.0, 1.0, 0.98);
-        self.draw_node_bg.draw_abs(cx, Rect {
-            pos,
-            size: DVec2 { x: menu_width, y: menu_height },
-        });
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos,
+                size: DVec2 {
+                    x: menu_width,
+                    y: menu_height,
+                },
+            },
+        );
 
         // Border (light theme)
         self.draw_node_bg.color = vec4(0.88, 0.88, 0.88, 1.0); // #e0e0e0
-        self.draw_node_bg.draw_abs(cx, Rect { pos, size: DVec2 { x: menu_width, y: 1.0 } });
-        self.draw_node_bg.draw_abs(cx, Rect {
-            pos: DVec2 { x: pos.x, y: pos.y + menu_height - 1.0 },
-            size: DVec2 { x: menu_width, y: 1.0 }
-        });
-        self.draw_node_bg.draw_abs(cx, Rect { pos, size: DVec2 { x: 1.0, y: menu_height } });
-        self.draw_node_bg.draw_abs(cx, Rect {
-            pos: DVec2 { x: pos.x + menu_width - 1.0, y: pos.y },
-            size: DVec2 { x: 1.0, y: menu_height }
-        });
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos,
+                size: DVec2 {
+                    x: menu_width,
+                    y: 1.0,
+                },
+            },
+        );
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos: DVec2 {
+                    x: pos.x,
+                    y: pos.y + menu_height - 1.0,
+                },
+                size: DVec2 {
+                    x: menu_width,
+                    y: 1.0,
+                },
+            },
+        );
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos,
+                size: DVec2 {
+                    x: 1.0,
+                    y: menu_height,
+                },
+            },
+        );
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos: DVec2 {
+                    x: pos.x + menu_width - 1.0,
+                    y: pos.y,
+                },
+                size: DVec2 {
+                    x: 1.0,
+                    y: menu_height,
+                },
+            },
+        );
 
         let mut y = pos.y + padding;
         let label_height = item_height * 0.8;
@@ -2371,7 +3205,8 @@ impl FlowCanvas {
         // Section label - Style (light theme)
         self.draw_text.text_style.font_size = 9.0;
         self.draw_text.color = vec4(0.6, 0.6, 0.6, 1.0); // #999999
-        self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, "Style");
+        self.draw_text
+            .draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, "Style");
         y += label_height;
 
         // Style items (light theme)
@@ -2385,22 +3220,36 @@ impl FlowCanvas {
                 vec4(0.2, 0.2, 0.2, 1.0) // #333333
             };
             let prefix = if is_selected { "> " } else { "  " };
-            self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, &format!("{}{}", prefix, label));
+            self.draw_text.draw_abs(
+                cx,
+                DVec2 { x: pos.x + 8.0, y },
+                &format!("{}{}", prefix, label),
+            );
             y += item_height;
         }
 
         // Divider (light theme)
         self.draw_node_bg.color = vec4(0.88, 0.88, 0.88, 1.0); // #e0e0e0
-        self.draw_node_bg.draw_abs(cx, Rect {
-            pos: DVec2 { x: pos.x + 8.0, y: y + 2.0 },
-            size: DVec2 { x: menu_width - 16.0, y: 1.0 }
-        });
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos: DVec2 {
+                    x: pos.x + 8.0,
+                    y: y + 2.0,
+                },
+                size: DVec2 {
+                    x: menu_width - 16.0,
+                    y: 1.0,
+                },
+            },
+        );
         y += item_height * 0.5;
 
         // Section label - Width (light theme)
         self.draw_text.text_style.font_size = 9.0;
         self.draw_text.color = vec4(0.6, 0.6, 0.6, 1.0); // #999999
-        self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, "Width");
+        self.draw_text
+            .draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, "Width");
         y += label_height;
 
         // Width items (light theme)
@@ -2414,22 +3263,36 @@ impl FlowCanvas {
                 vec4(0.2, 0.2, 0.2, 1.0) // #333333
             };
             let prefix = if is_selected { "> " } else { "  " };
-            self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, &format!("{}{}", prefix, label));
+            self.draw_text.draw_abs(
+                cx,
+                DVec2 { x: pos.x + 8.0, y },
+                &format!("{}{}", prefix, label),
+            );
             y += item_height;
         }
 
         // Divider (light theme)
         self.draw_node_bg.color = vec4(0.88, 0.88, 0.88, 1.0); // #e0e0e0
-        self.draw_node_bg.draw_abs(cx, Rect {
-            pos: DVec2 { x: pos.x + 8.0, y: y + 2.0 },
-            size: DVec2 { x: menu_width - 16.0, y: 1.0 }
-        });
+        self.draw_node_bg.draw_abs(
+            cx,
+            Rect {
+                pos: DVec2 {
+                    x: pos.x + 8.0,
+                    y: y + 2.0,
+                },
+                size: DVec2 {
+                    x: menu_width - 16.0,
+                    y: 1.0,
+                },
+            },
+        );
         y += item_height * 0.5;
 
         // Section label - Animation (light theme)
         self.draw_text.text_style.font_size = 9.0;
         self.draw_text.color = vec4(0.6, 0.6, 0.6, 1.0); // #999999
-        self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, "Animation");
+        self.draw_text
+            .draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, "Animation");
         y += label_height;
 
         // Animation items (light theme)
@@ -2443,7 +3306,11 @@ impl FlowCanvas {
                 vec4(0.2, 0.2, 0.2, 1.0) // #333333
             };
             let prefix = if is_selected { "> " } else { "  " };
-            self.draw_text.draw_abs(cx, DVec2 { x: pos.x + 8.0, y }, &format!("{}{}", prefix, label));
+            self.draw_text.draw_abs(
+                cx,
+                DVec2 { x: pos.x + 8.0, y },
+                &format!("{}{}", prefix, label),
+            );
             y += item_height;
         }
     }
@@ -2466,11 +3333,17 @@ impl FlowCanvasRef {
             if let Some(idx) = inner.nodes.iter().position(|n| n.id == node_id) {
                 inner.save_undo_state();
                 // Remove connected edges
-                inner.edges.retain(|e| e.from_node != idx && e.to_node != idx);
+                inner
+                    .edges
+                    .retain(|e| e.from_node != idx && e.to_node != idx);
                 // Update edge indices
                 for edge in &mut inner.edges {
-                    if edge.from_node > idx { edge.from_node -= 1; }
-                    if edge.to_node > idx { edge.to_node -= 1; }
+                    if edge.from_node > idx {
+                        edge.from_node -= 1;
+                    }
+                    if edge.to_node > idx {
+                        edge.to_node -= 1;
+                    }
                 }
                 inner.nodes.remove(idx);
                 inner.selected_nodes.clear();
